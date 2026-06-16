@@ -8,9 +8,12 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     gcc \
     && rm -rf /var/lib/apt/lists/*
 
-# Copy requirements and install dependencies
+# Copy requirements and source code
 COPY pyproject.toml ./
-RUN pip install --no-cache-dir --user -e .
+COPY src/ src/
+
+# Install dependencies (without -e flag for production)
+RUN pip install --no-cache-dir --user .
 
 # Final stage
 FROM python:3.11-slim
@@ -26,8 +29,8 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 COPY --from=builder /root/.local /root/.local
 ENV PATH=/root/.local/bin:$PATH
 
-# Copy application code
-COPY src/ src/
+# Copy application code from builder
+COPY --from=builder /app/src src/
 
 # Health check
 HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
