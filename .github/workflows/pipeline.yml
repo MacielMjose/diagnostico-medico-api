@@ -112,72 +112,21 @@ jobs:
         env:
           REGISTRY: ${{ steps.login-ecr.outputs.registry }}
           REPOSITORY: ${{ env.ECR_REPOSITORY }}
-          IMAGE_TAG: ${{ github.sha }}
         run: |
-          docker build -t $REGISTRY/$REPOSITORY:$IMAGE_TAG .
-          docker push $REGISTRY/$REPOSITORY:$IMAGE_TAG
-          echo "image=$REGISTRY/$REPOSITORY:$IMAGE_TAG" >> $GITHUB_OUTPUT
+          # Build image
+          docker build -t $REGISTRY/$REPOSITORY:latest .
+          docker build -t $REGISTRY/$REPOSITORY:${{ github.sha }} .
+
+          # Push both tags to ECR
+          docker push $REGISTRY/$REPOSITORY:latest
+          docker push $REGISTRY/$REPOSITORY:${{ github.sha }}
+
+          # Output image with latest tag (for reference)
+          echo "image=$REGISTRY/$REPOSITORY:latest" >> $GITHUB_OUTPUT
 
       - name: Output da imagem
         run: echo "Built image - ${{ steps.image.outputs.image }}"
 
 
-  # ─────────────────────────────────────────────
-  # 4. DEPLOY TO FARGATE — deploy na main
-  # ─────────────────────────────────────────────
-  deploy-fargate:
-    name: Deploy to ECS Fargate
-    runs-on: ubuntu-latest
-    needs: build-image
-    # Só executa quando há push direto na branch main
-    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
-
-    permissions:
-      id-token: write
-      contents: read
-
-    steps:
-      - name: Checkout do código
-        uses: actions/checkout@v4
-
-      - name: Configurar AWS credentials (OIDC)
-        uses: aws-actions/configure-aws-credentials@v4
-        with:
-          role-to-assume: ${{ secrets.AWS_ROLE_TO_ASSUME }}
-          aws-region: ${{ env.AWS_REGION }}
-
-      - name: Download task definition
-        run: |
-          aws ecs describe-task-definition \
-            --task-definition ${{ env.ECS_TASK_DEFINITION }} \
-            --query taskDefinition > task-definition.json
-
-      - name: Update ECS task definition com nova imagem
-        id: task-def
-        uses: aws-actions/amazon-ecs-render-task-definition@v1
-        with:
-          task-definition: task-definition.json
-          container-name: ${{ env.ECR_REPOSITORY }}
-          image: ${{ needs.build-image.outputs.image }}
-
-      - name: Deploy to Amazon ECS
-        uses: aws-actions/amazon-ecs-deploy-task-definition@v1
-        with:
-          task-definition: ${{ steps.task-def.outputs.task-definition }}
-          service: ${{ env.ECS_SERVICE }}
-          cluster: ${{ env.ECS_CLUSTER }}
-          wait-for-service-stability: true
-
-      - name: Aguardar estabilização do serviço
-        run: |
-          aws ecs wait services-stable \
-            --cluster ${{ env.ECS_CLUSTER }} \
-            --services ${{ env.ECS_SERVICE }} \
-            --region ${{ env.AWS_REGION }}
-
-      - name: Obter URL do ALB
-        run: |
-          ALB_DNS=$(aws elbv2 describe-load-balancers \
-            --query "LoadBalancers[?contains(LoadBalancerName, 'diagnostico-medico-api')].DNSName" \
-            --output text)
-          echo "Application URL: http://$ALB_DNS"
+  # Image pushed to ECR with "latest" tag
+  # Terraform will handle deployment when it detects new image
