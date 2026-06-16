@@ -35,3 +35,23 @@ Thumbs.db
 
 # Outros Ignores manuais
 minha_api.egg-info/
+
+# Terraform
+.terraform/
+.terraform.lock.hcl
+*.tfstate
+*.tfstate.*
+override.tf
+override.tf.json
+*_override.tf
+*_override.tf.json
+.terraformrc
+terraform.rc
+
+# Docker
+.docker/
+docker-compose.override.yml
+
+# AWS
+*.pem
+*.pub
