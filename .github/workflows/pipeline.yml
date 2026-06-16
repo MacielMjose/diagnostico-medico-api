@@ -127,6 +127,32 @@ jobs:
       - name: Output da imagem
         run: echo "Built image - ${{ steps.image.outputs.image }}"
 
+      - name: Deploy to ECS (only on main)
+        if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+        run: |
+          aws ecs update-service \
+            --cluster ${{ env.ECS_CLUSTER }} \
+            --service ${{ env.ECS_SERVICE }} \
+            --force-new-deployment \
+            --region ${{ env.AWS_REGION }}
 
-  # Image pushed to ECR with "latest" tag
-  # Terraform will handle deployment when it detects new image
+          echo "✓ ECS deployment triggered"
+
+      - name: Wait for service stability
+        if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+        run: |
+          aws ecs wait services-stable \
+            --cluster ${{ env.ECS_CLUSTER }} \
+            --services ${{ env.ECS_SERVICE }} \
+            --region ${{ env.AWS_REGION }}
+
+          echo "✓ Service is stable"
+
+      - name: Get ALB URL
+        if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+        run: |
+          ALB_URL=$(aws elbv2 describe-load-balancers \
+            --query "LoadBalancers[?contains(LoadBalancerName, '${{ env.ECR_REPOSITORY }}')].DNSName" \
+            --output text \
+            --region ${{ env.AWS_REGION }})
+          echo "Application URL: http://$ALB_URL"

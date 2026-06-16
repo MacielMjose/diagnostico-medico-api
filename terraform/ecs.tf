@@ -173,12 +173,11 @@ resource "aws_ecs_task_definition" "app" {
 
 # ECS Service
 resource "aws_ecs_service" "app" {
-  name                   = "${var.app_name}-service"
-  cluster                = aws_ecs_cluster.main.id
-  task_definition        = aws_ecs_task_definition.app.arn
-  desired_count          = var.desired_count
-  launch_type            = "FARGATE"
-  force_new_deployment   = true  # Always pull latest image from ECR
+  name            = "${var.app_name}-service"
+  cluster         = aws_ecs_cluster.main.id
+  task_definition = aws_ecs_task_definition.app.arn
+  desired_count   = var.desired_count
+  launch_type     = "FARGATE"
 
   network_configuration {
     subnets          = aws_subnet.private[*].id
