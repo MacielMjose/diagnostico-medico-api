@@ -146,13 +146,4 @@ jobs:
             --services ${{ env.ECS_SERVICE }} \
             --region ${{ env.AWS_REGION }}
 
-          echo "✓ Service is stable"
-
-      - name: Get ALB URL
-        if: github.ref == 'refs/heads/main' && github.event_name == 'push'
-        run: |
-          ALB_URL=$(aws elbv2 describe-load-balancers \
-            --query "LoadBalancers[?contains(LoadBalancerName, '${{ env.ECR_REPOSITORY }}')].DNSName" \
-            --output text \
-            --region ${{ env.AWS_REGION }})
-          echo "Application URL: http://$ALB_URL"
+          echo "✓ Service is stable and running latest image"
