@@ -7,7 +7,17 @@ terraform {
     }
   }
 
-  # Uncomment to use S3 backend
+  # Option 1: Terraform Cloud (recommended for teams)
+  cloud {
+    organization = "diagnostico-medico"
+
+    workspaces {
+      name = "diagnostico-medico-api-dev"
+    }
+  }
+
+  # Option 2: S3 Backend (for individual/self-managed)
+  # Uncomment to use instead of Terraform Cloud
   # backend "s3" {
   #   bucket         = "your-terraform-state-bucket"
   #   key            = "diagnostico-medico-api/terraform.tfstate"
@@ -15,6 +25,9 @@ terraform {
   #   encrypt        = true
   #   dynamodb_table = "terraform-locks"
   # }
+
+  # Option 3: Local Backend (dev only, not recommended for production)
+  # Default - no additional config needed, uses local terraform.tfstate
 }
 
 provider "aws" {

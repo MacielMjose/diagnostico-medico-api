@@ -18,7 +18,29 @@ aws configure
 # Default output format: json
 ```
 
-### 3. Deploy Infrastructure
+### 3. Setup Terraform Backend (Choose One)
+
+**Option A: Terraform Cloud (Recommended)**
+```bash
+# 1. Sign up: https://app.terraform.io/signup
+# 2. Create organization: diagnostico-medico
+# 3. Create API token and save it
+# 4. Run: terraform login (paste token)
+# 5. See TERRAFORM_CLOUD_QUICK.md for 5-min setup
+```
+
+**Option B: Local State (Quick Start)**
+```bash
+# No setup needed, uses terraform.tfstate file locally
+# Not recommended for team collaboration
+```
+
+**Option C: S3 Backend (Self-Managed)**
+```bash
+# See TERRAFORM_CLOUD.md → Option 2 for detailed setup
+```
+
+### 4. Deploy Infrastructure
 ```bash
 cd terraform
 terraform init
@@ -26,7 +48,7 @@ terraform plan
 terraform apply
 ```
 
-### 4. Get Application URL
+### 5. Get Application URL
 ```bash
 terraform output application_url
 ```
