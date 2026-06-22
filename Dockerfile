@@ -1,5 +1,5 @@
 # Multi-stage build for Python FastAPI application
-FROM python:3.11-slim as builder
+FROM python:3.12-slim as builder
 
 WORKDIR /app
 
@@ -16,7 +16,7 @@ COPY src/ src/
 RUN pip install --no-cache-dir --user .
 
 # Final stage
-FROM python:3.11-slim
+FROM python:3.12-slim
 
 WORKDIR /app
 
@@ -40,4 +40,4 @@ HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
 EXPOSE 8000
 
 # Run the application
-CMD ["uvicorn", "minha_api.main:app", "--host", "0.0.0.0", "--port", "8000"]
+CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000"]

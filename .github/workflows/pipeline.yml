@@ -34,7 +34,7 @@ jobs:
       - name: Configurar Python
         uses: actions/setup-python@v5
         with:
-          python-version: "3.11"
+          python-version: "3.12"
           cache: "pip"
 
       - name: Instalar dependências de dev
@@ -62,14 +62,14 @@ jobs:
       - name: Configurar Python
         uses: actions/setup-python@v5
         with:
-          python-version: "3.11"
+          python-version: "3.12"
           cache: "pip"
 
       - name: Instalar dependências de dev
         run: pip install -e ".[dev]"
 
       - name: Rodar testes com cobertura
-        run: pytest --cov=minha_api --cov-report=term-missing
+        run: pytest --cov=app --cov-report=term-missing
 
       - name: Upload do relatório de cobertura
         uses: actions/upload-artifact@v4
