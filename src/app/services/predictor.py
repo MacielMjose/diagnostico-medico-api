@@ -1,5 +1,5 @@
-from app.domain.models import PCOSPrediction
 from app.domain.exceptions import ModelNotLoadedError
+from app.domain.models import PCOSPrediction
 from app.infrastructure.model_registry import ModelRegistry
 
 

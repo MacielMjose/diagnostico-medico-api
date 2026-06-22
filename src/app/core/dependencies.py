@@ -1,11 +1,11 @@
 from fastapi import Depends
 
 from app.core.config import Settings
-from app.services.predictor import PredictorService
+from app.infrastructure.llm_client import LLMClient
+from app.infrastructure.model_registry import ModelRegistry
 from app.services.genetic_optimizer import GeneticOptimizerService
 from app.services.llm_explainer import LLMExplainerService
-from app.infrastructure.model_registry import ModelRegistry
-from app.infrastructure.llm_client import LLMClient
+from app.services.predictor import PredictorService
 
 
 def get_settings() -> Settings:

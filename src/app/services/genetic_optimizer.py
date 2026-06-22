@@ -55,9 +55,7 @@ class GeneticOptimizerService:
                         [self._mutate(c1, mut_rate), self._mutate(c2, mut_rate)]
                     )
                 else:
-                    new_pop.append(
-                        self._mutate(self._select(population), mut_rate)
-                    )
+                    new_pop.append(self._mutate(self._select(population), mut_rate))
             population = [(c, 0.0) for c in new_pop[:pop_size]]
 
         best = max(population, key=lambda x: self._fitness(x[0]))

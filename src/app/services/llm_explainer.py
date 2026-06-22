@@ -6,9 +6,7 @@ class LLMExplainerService:
     def __init__(self, client: LLMClient):
         self.client = client
 
-    def _build_prompt(
-        self, features: dict, diagnosis: int, probability: float
-    ) -> str:
+    def _build_prompt(self, features: dict, diagnosis: int, probability: float) -> str:
         return (
             f"Você é um endocrinologista. Paciente com os seguintes dados: {features}. "
             f"Diagnóstico do modelo: {'PCOS' if diagnosis else 'Normal'} "

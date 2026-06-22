@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException, UploadFile, File
+from fastapi import APIRouter, Depends, File, HTTPException, UploadFile
 
 from app.api.v1.ultrasound.schemas import UltrasoundOutput
 from app.core.config import Settings

@@ -5,7 +5,11 @@ from fastapi.responses import JSONResponse
 from app.api.v1.router import api_v1_router
 from app.core.config import Settings
 from app.core.logger import setup_logging
-from app.domain.exceptions import ModelNotLoadedError, InvalidFeaturesError, LLMRequestError
+from app.domain.exceptions import (
+    InvalidFeaturesError,
+    LLMRequestError,
+    ModelNotLoadedError,
+)
 from app.monitoring.middleware import TimingMiddleware
 
 
