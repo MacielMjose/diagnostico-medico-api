@@ -1,7 +1,8 @@
 from fastapi import Depends
 
 from app.core.config import Settings
-from app.infrastructure.llm_client import LLMClient
+from app.infrastructure.llm.base import LLMProvider
+from app.infrastructure.llm.factory import create_llm_provider
 from app.infrastructure.model_registry import ModelRegistry
 from app.services.genetic_optimizer import GeneticOptimizerService
 from app.services.llm_explainer import LLMExplainerService
@@ -28,11 +29,11 @@ def get_optimizer(
     return GeneticOptimizerService(registry)
 
 
-def get_llm_client(settings: Settings = Depends(get_settings)) -> LLMClient:
-    return LLMClient(api_key=settings.llm_api_key, model=settings.llm_model)
+def get_llm_provider(settings: Settings = Depends(get_settings)) -> LLMProvider:
+    return create_llm_provider(settings)
 
 
 def get_explainer(
-    client: LLMClient = Depends(get_llm_client),
+    provider: LLMProvider = Depends(get_llm_provider),
 ) -> LLMExplainerService:
-    return LLMExplainerService(client)
+    return LLMExplainerService(provider)
