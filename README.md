@@ -29,19 +29,24 @@ POST /diagnose
 
 ```
 diagnostico-medico-api/
-├── src/minha_api/
-│   ├── config.py                   # Configurações via variáveis de ambiente
-│   ├── schemas.py                  # Modelos Pydantic (request / response)
-│   ├── main.py                     # FastAPI — rotas
-│   ├── models/
-│   │   └── pcos_classifier.py      # Carregamento do modelo + predição + SHAP
-│   └── services/
-│       ├── interpreter.py          # Prompt engineering + orquestração LLM
+├── src/app/
+│   ├── main.py                     # FastAPI — cria a app e registra rotas
+│   ├── core/
+│   │   ├── config.py               # Configurações via variáveis de ambiente
+│   │   └── dependencies.py         # Injeção de dependências (predictor, LLM)
+│   ├── api/v1/                     # Rotas: predict, explain, optimize, ultrasound
+│   ├── domain/                     # Modelos de domínio + mapeamento de features
+│   ├── services/
+│   │   ├── predictor.py            # Carregamento do modelo + predição + SHAP
+│   │   └── llm_explainer.py        # Prompt engineering + orquestração LLM
+│   └── infrastructure/
+│       ├── model_registry.py       # Carregamento do artefato joblib
 │       └── llm/
 │           ├── base.py             # Protocolo abstrato LLMProvider
 │           ├── openai_provider.py
 │           ├── anthropic_provider.py
 │           ├── ollama_provider.py
+│           ├── gemini_provider.py
 │           └── factory.py          # Cria provider conforme LLM_PROVIDER
 ├── scripts/
 │   └── train_model.py              # Treina e salva o artefato do modelo
@@ -135,10 +140,10 @@ O script baixa o dataset do Kaggle, treina a Regressão Logística com as Top 20
 ## Executando a API
 
 ```bash
-uvicorn minha_api.main:app --reload
+uvicorn app.main:app --reload
 ```
 
-A documentação interativa fica disponível em `http://localhost:8000/swagger`.
+A documentação interativa fica disponível em `http://localhost:8000/docs`.
 
 ---
 
@@ -229,7 +234,7 @@ O `interpreter.py` aplica duas camadas de prompt:
 ## Testes
 
 ```bash
-pytest --cov=minha_api --cov-report=term-missing
+pytest --cov=app --cov-report=term-missing
 ```
 
 Os testes utilizam mocks para o modelo e para o provedor LLM — não é necessário ter o artefato treinado nem API keys para rodar a suíte.

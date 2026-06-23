@@ -5,6 +5,11 @@ from app.main import create_app
 
 
 @pytest.fixture
+def anyio_backend():
+    return "asyncio"
+
+
+@pytest.fixture
 def app():
     return create_app()
 

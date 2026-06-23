@@ -22,15 +22,16 @@ import os
 import pathlib
 import sys
 
-# Permite importar minha_api sem instalar o pacote
+# Permite importar o pacote app sem instalar
 sys.path.insert(0, str(pathlib.Path(__file__).parent.parent / "src"))
 
 import joblib
 import kagglehub
 import pandas as pd
 
-from minha_api.models.pcos_classifier import predict
-from minha_api.schemas import FEATURE_COLUMN_MAP, PatientData
+from app.domain.features import FEATURE_COLUMN_MAP
+from app.infrastructure.model_registry import ModelRegistry
+from app.services.predictor import PredictorService
 
 MODEL_PATH = pathlib.Path("models/pcos_model.joblib")
 
@@ -40,14 +41,20 @@ COLUMN_TO_FIELD = {col: field for field, col in FEATURE_COLUMN_MAP.items()}
 
 def load_dataset() -> pd.DataFrame:
     print("Baixando dataset do Kaggle...")
-    path = kagglehub.dataset_download("prasoonkottarathil/polycystic-ovary-syndrome-pcos")
+    path = kagglehub.dataset_download(
+        "prasoonkottarathil/polycystic-ovary-syndrome-pcos"
+    )
     df = pd.read_excel(
         os.path.join(path, "PCOS_data_without_infertility.xlsx"),
         sheet_name="Full_new",
     )
 
     # Mesma limpeza do train_model.py
-    df.drop(columns=["Unnamed: 44", "Sl. No", "Patient File No."], inplace=True, errors="ignore")
+    df.drop(
+        columns=["Unnamed: 44", "Sl. No", "Patient File No."],
+        inplace=True,
+        errors="ignore",
+    )
     df["Marraige Status (Yrs)"] = df["Marraige Status (Yrs)"].fillna(
         df["Marraige Status (Yrs)"].mean()
     )
@@ -57,20 +64,24 @@ def load_dataset() -> pd.DataFrame:
         df[col] = pd.to_numeric(df[col], errors="coerce")
         df[col] = df[col].fillna(df[col].median())
     df = pd.get_dummies(df, columns=["Blood Group"], drop_first=True, dtype=int)
-    df.drop(columns=["Weight (Kg)", "FSH(mIU/mL)", "Waist(inch)"], inplace=True, errors="ignore")
+    df.drop(
+        columns=["Weight (Kg)", "FSH(mIU/mL)", "Waist(inch)"],
+        inplace=True,
+        errors="ignore",
+    )
 
     return df
 
 
-def row_to_patient(row: pd.Series, top_features: list[str]) -> PatientData:
-    """Converte uma linha do dataset no objeto PatientData que a API receberia."""
+def row_to_features(row: pd.Series, top_features: list[str]) -> dict[str, float]:
+    """Converte uma linha do dataset no dict de features que a API receberia."""
     fields = {}
     for col in top_features:
         field_name = COLUMN_TO_FIELD.get(col)
         if field_name is None:
             raise KeyError(f"Coluna '{col}' não tem mapeamento em FEATURE_COLUMN_MAP")
         fields[field_name] = float(row[col])
-    return PatientData(**fields)
+    return fields
 
 
 def validate(n_samples: int = 20) -> None:
@@ -83,14 +94,22 @@ def validate(n_samples: int = 20) -> None:
     pipeline = artifacts["pipeline"]
     top_features: list[str] = artifacts["top_features"]
 
+    predictor = PredictorService(ModelRegistry(str(MODEL_PATH)))
+
     df = load_dataset()
 
     # Usa uma amostra aleatória fixada para reprodutibilidade
-    sample = df[top_features + ["PCOS (Y/N)"]].dropna().sample(n=n_samples, random_state=42)
+    sample = (
+        df[top_features + ["PCOS (Y/N)"]].dropna().sample(n=n_samples, random_state=42)
+    )
 
     print(f"\nComparando {n_samples} linhas — notebook pipeline vs API predict()\n")
-    print("Nota: a API arredonda para 4 casas decimais — comparação usa round(notebook, 4).\n")
-    print(f"{'#':>3}  {'Real':>5}  {'Notebook':>10}  {'Rounded':>10}  {'API':>10}  {'Δ':>9}  Status")
+    print(
+        "Nota: a API arredonda para 4 casas decimais — comparação usa round(notebook, 4).\n"
+    )
+    print(
+        f"{'#':>3}  {'Real':>5}  {'Notebook':>10}  {'Rounded':>10}  {'API':>10}  {'Δ':>9}  Status"
+    )
     print("─" * 68)
 
     mismatches = 0
@@ -98,13 +117,15 @@ def validate(n_samples: int = 20) -> None:
         real_label = int(row["PCOS (Y/N)"])
 
         # ── Caminho 1: direto pelo pipeline (como o notebook faz) ──────────
-        notebook_prob = float(pipeline.predict_proba(pd.DataFrame([row])[top_features])[0, 1])
+        notebook_prob = float(
+            pipeline.predict_proba(pd.DataFrame([row])[top_features])[0, 1]
+        )
         notebook_rounded = round(notebook_prob, 4)
 
-        # ── Caminho 2: via API (PatientData → to_dataframe_row → predict) ──
-        patient = row_to_patient(row, top_features)
-        api_result = predict(patient.to_dataframe_row())
-        api_prob = api_result["probability"]
+        # ── Caminho 2: via API (features → PredictorService.predict) ──────
+        features = row_to_features(row, top_features)
+        api_result = predictor.predict(features)
+        api_prob = api_result.probability
 
         # Compara após o mesmo arredondamento que o predict() aplica internamente
         delta = abs(notebook_rounded - api_prob)
@@ -121,7 +142,9 @@ def validate(n_samples: int = 20) -> None:
     if mismatches == 0:
         print(f"\nRESULTADO: todos os {n_samples} casos batem perfeitamente.")
     else:
-        print(f"\nRESULTADO: {mismatches} caso(s) com divergência — verifique o mapeamento de colunas.")
+        print(
+            f"\nRESULTADO: {mismatches} caso(s) com divergência — verifique o mapeamento de colunas."
+        )
         sys.exit(1)
 
     # ── Métricas agregadas da amostra ─────────────────────────────────────
@@ -132,7 +155,9 @@ def validate(n_samples: int = 20) -> None:
         for _, row in sample.iterrows()
     ]
     acertos = sum(p == r for p, r in zip(y_pred_notebook, y_true))
-    print(f"  Acurácia na amostra ({n_samples} casos): {acertos}/{n_samples} = {acertos/n_samples:.1%}")
+    print(
+        f"  Acurácia na amostra ({n_samples} casos): {acertos}/{n_samples} = {acertos / n_samples:.1%}"
+    )
 
 
 if __name__ == "__main__":
