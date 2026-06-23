@@ -1,34 +1,46 @@
+_VALID_PATIENT = {
+    "follicle_no_r": 12,
+    "follicle_no_l": 10,
+    "skin_darkening": 1,
+    "hair_growth": 1,
+    "weight_gain": 1,
+    "cycle": 4,
+    "fast_food": 1,
+    "pimples": 0,
+    "amh": 7.5,
+    "bmi": 27.0,
+    "cycle_length": 4,
+    "hair_loss": 0,
+    "age": 28,
+    "hip": 40,
+    "avg_f_size_l": 16.0,
+    "marriage_status": 3.0,
+    "endometrium": 9.0,
+    "avg_f_size_r": 17.0,
+    "pulse_rate": 74,
+    "hb": 11.5,
+}
+
+
 class TestFullPipeline:
     """Teste de integração do fluxo completo: health → predict → explain → optimize."""
 
     def test_health_entao_predict_entao_explain(self, client, override_deps):
-        # 1. Health check
         health = client.get("/health")
         assert health.status_code == 200
 
-        # 2. Predict
-        predict_payload = {
-            "age": 28,
-            "bmi": 24.5,
-            "follicle_no_r": 8,
-            "follicle_no_l": 6,
-            "skin_darkening": 1,
-            "hair_growth": 1,
-            "weight_gain": 0,
-            "amh": 4.2,
-            "cycle_r_i": 2,
-            "fast_food": 1,
-        }
-        predict = client.post("/api/v1/predict/", json=predict_payload)
+        predict = client.post("/api/v1/predict/", json=_VALID_PATIENT)
         assert predict.status_code == 200
         pred_data = predict.json()
 
-        explain_payload = {
-            "features": predict_payload,
-            "diagnosis": pred_data["diagnosis"],
-            "probability": pred_data["probability"],
-        }
-        explain = client.post("/api/v1/explain/", json=explain_payload)
+        explain = client.post(
+            "/api/v1/explain/",
+            json={
+                "features": _VALID_PATIENT,
+                "diagnosis": pred_data["diagnosis"],
+                "probability": pred_data["probability"],
+            },
+        )
         assert explain.status_code == 200
         expl_data = explain.json()
         assert len(expl_data["explanation"]) > 0
@@ -47,59 +59,13 @@ class TestFullPipeline:
         opt_data = optimize.json()
         assert "best_params" in opt_data
 
-        # 2. Predict (independente, apenas verifica se a API ainda funciona)
-        predict = client.post(
-            "/api/v1/predict/",
-            json={
-                "age": 30,
-                "bmi": 22.0,
-                "follicle_no_r": 10,
-                "follicle_no_l": 5,
-                "skin_darkening": 0,
-                "hair_growth": 0,
-                "weight_gain": 0,
-                "amh": 3.0,
-                "cycle_r_i": 1,
-                "fast_food": 0,
-            },
-        )
+        predict = client.post("/api/v1/predict/", json=_VALID_PATIENT)
         assert predict.status_code == 200
 
     def test_todos_endpoints_respondem(self, client, override_deps):
         endpoints = [
             ("GET", "/health", None),
-            (
-                "POST",
-                "/api/v1/predict/",
-                {
-                    "age": 28,
-                    "bmi": 24.5,
-                    "follicle_no_r": 8,
-                    "follicle_no_l": 6,
-                    "skin_darkening": 1,
-                    "hair_growth": 1,
-                    "weight_gain": 0,
-                    "amh": 4.2,
-                    "cycle_r_i": 2,
-                    "fast_food": 1,
-                },
-            ),
-            (
-                "POST",
-                "/api/v1/predict/top20",
-                {
-                    "age": 28,
-                    "bmi": 24.5,
-                    "follicle_no_r": 8,
-                    "follicle_no_l": 6,
-                    "skin_darkening": 1,
-                    "hair_growth": 1,
-                    "weight_gain": 0,
-                    "amh": 4.2,
-                    "cycle_r_i": 2,
-                    "fast_food": 1,
-                },
-            ),
+            ("POST", "/api/v1/predict/", _VALID_PATIENT),
             (
                 "POST",
                 "/api/v1/optimize/",
@@ -114,7 +80,7 @@ class TestFullPipeline:
                 "POST",
                 "/api/v1/explain/",
                 {
-                    "features": {"Age (yrs)": 28},
+                    "features": {"BMI": 27.0},
                     "diagnosis": 1,
                     "probability": 0.85,
                 },
@@ -125,6 +91,6 @@ class TestFullPipeline:
                 response = client.get(path)
             else:
                 response = client.post(path, json=body)
-            assert (
-                response.status_code == 200
-            ), f"{method} {path} retornou {response.status_code}"
+            assert response.status_code == 200, (
+                f"{method} {path} retornou {response.status_code}"
+            )

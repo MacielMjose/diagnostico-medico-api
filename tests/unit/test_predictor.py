@@ -1,113 +1,101 @@
-from unittest.mock import MagicMock, patch
+from unittest.mock import MagicMock
 
 import numpy as np
 import pytest
-from sklearn.linear_model import LogisticRegression
-from sklearn.pipeline import make_pipeline
-from sklearn.preprocessing import StandardScaler
 
 from app.domain.exceptions import ModelNotLoadedError
-from app.services.predictor import PredictorService
+from app.services.predictor import PredictorService, _confidence_label
+
+_TOP_FEATURES = [
+    "Follicle No. (R)",
+    "Follicle No. (L)",
+    "Skin darkening (Y/N)",
+    "hair growth(Y/N)",
+    "Weight gain(Y/N)",
+    "Cycle(R/I)",
+    "Fast food (Y/N)",
+    "Pimples(Y/N)",
+    "AMH(ng/mL)",
+    "BMI",
+    "Cycle length(days)",
+    "Hair loss(Y/N)",
+    " Age (yrs)",
+    "Hip(inch)",
+    "Avg. F size (L) (mm)",
+    "Marraige Status (Yrs)",
+    "Endometrium (mm)",
+    "Avg. F size (R) (mm)",
+    "Pulse rate(bpm) ",
+    "Hb(g/dl)",
+]
+_FEATURE_NAMES = [f"num__f{i}" for i in range(20)]
+
+_PATIENT = {
+    "follicle_no_r": 12,
+    "follicle_no_l": 10,
+    "skin_darkening": 1,
+    "hair_growth": 1,
+    "weight_gain": 1,
+    "cycle": 4,
+    "fast_food": 1,
+    "pimples": 0,
+    "amh": 7.5,
+    "bmi": 27.0,
+    "cycle_length": 4,
+    "hair_loss": 0,
+    "age": 28,
+    "hip": 40,
+    "avg_f_size_l": 16.0,
+    "marriage_status": 3.0,
+    "endometrium": 9.0,
+    "avg_f_size_r": 17.0,
+    "pulse_rate": 74,
+    "hb": 11.5,
+}
 
 
-def _build_dummy_pipeline():
-    pipeline = make_pipeline(StandardScaler(), LogisticRegression())
-    X = np.random.randn(50, 10)
-    y = np.random.randint(0, 2, 50)
-    pipeline.fit(X, y)
-    return pipeline
+def _fake_artifacts():
+    pipeline = MagicMock()
+    pipeline.predict_proba.return_value = np.array([[0.13, 0.87]])
+    pipeline.named_steps = {"preprocessor": MagicMock()}
+    pipeline.named_steps["preprocessor"].transform.return_value = np.zeros((1, 20))
+
+    explainer = MagicMock()
+    shap_out = MagicMock()
+    shap_out.values = np.array([np.linspace(-1, 1, 20)])
+    explainer.return_value = shap_out
+
+    return {
+        "pipeline": pipeline,
+        "explainer": explainer,
+        "feature_names": _FEATURE_NAMES,
+        "top_features": _TOP_FEATURES,
+    }
 
 
 class TestPredictorService:
     """Testes para o PredictorService (predição de diagnóstico)."""
 
-    def test_predict_returns_pcos_prediction(self):
-        pipeline = _build_dummy_pipeline()
-        mock_registry = MagicMock()
-        mock_registry.load_pipeline.return_value = pipeline
+    def test_predict_returns_prediction_with_top5(self):
+        registry = MagicMock()
+        registry.load_artifacts.return_value = _fake_artifacts()
 
-        service = PredictorService(mock_registry)
-        features = {
-            "Age (yrs)": 28.0,
-            "BMI": 24.5,
-            "Follicle No. (R)": 8.0,
-            "Follicle No. (L)": 6.0,
-            "Skin darkening (Y/N)": 1,
-            "hair growth(Y/N)": 1,
-            "Weight gain(Y/N)": 0,
-            "AMH(ng/mL)": 4.2,
-            "Cycle(R/I)": 2,
-            "Fast food (Y/N)": 1,
-        }
-        result = service.predict(features)
-        assert result.diagnosis in (0, 1)
-        assert 0.0 <= result.probability <= 1.0
-        assert result.model_version == "1.0.0"
+        result = PredictorService(registry).predict(_PATIENT)
 
-    def test_predict_raises_when_model_not_found(self):
-        mock_registry = MagicMock()
-        mock_registry.load_pipeline.return_value = None
+        assert result.diagnosis == 1
+        assert result.probability == pytest.approx(0.87)
+        assert result.confidence == "Alta"
+        assert len(result.top_contributing_features) == 5
 
-        service = PredictorService(mock_registry)
-        with pytest.raises(ModelNotLoadedError, match="Model not loaded"):
-            service.predict({"feature1": 1.0})
+    def test_predict_raises_when_model_missing(self):
+        registry = MagicMock()
+        registry.load_artifacts.return_value = None
 
-    def test_predict_top20_returns_prediction(self):
-        pipeline = _build_dummy_pipeline()
-        mock_registry = MagicMock()
-        mock_registry.load_pipeline.return_value = pipeline
+        with pytest.raises(ModelNotLoadedError):
+            PredictorService(registry).predict(_PATIENT)
 
-        service = PredictorService(mock_registry)
-        features = {
-            "Age (yrs)": 30.0,
-            "BMI": 22.0,
-            "Follicle No. (R)": 10.0,
-            "Follicle No. (L)": 5.0,
-            "Skin darkening (Y/N)": 0,
-            "hair growth(Y/N)": 0,
-            "Weight gain(Y/N)": 0,
-            "AMH(ng/mL)": 3.0,
-            "Cycle(R/I)": 1,
-            "Fast food (Y/N)": 0,
-        }
-        result = service.predict_top20(features)
-        assert result.diagnosis in (0, 1)
-        assert result.model_version == "1.0.0"
 
-    def test_predict_top20_raises_when_model_not_found(self):
-        mock_registry = MagicMock()
-        mock_registry.load_pipeline.return_value = None
-
-        service = PredictorService(mock_registry)
-        with pytest.raises(ModelNotLoadedError, match="Top20 model not loaded"):
-            service.predict_top20({"feature1": 1.0})
-
-    def _build_10_features(self):
-        return {
-            "Age (yrs)": 28.0,
-            "BMI": 24.5,
-            "Follicle No. (R)": 8.0,
-            "Follicle No. (L)": 6.0,
-            "Skin darkening (Y/N)": 1,
-            "hair growth(Y/N)": 1,
-            "Weight gain(Y/N)": 0,
-            "AMH(ng/mL)": 4.2,
-            "Cycle(R/I)": 2,
-            "Fast food (Y/N)": 1,
-        }
-
-    def test_predict_loads_logistic_regression_model(self):
-        mock_registry = MagicMock()
-        mock_registry.load_pipeline.return_value = _build_dummy_pipeline()
-
-        service = PredictorService(mock_registry)
-        service.predict(self._build_10_features())
-        mock_registry.load_pipeline.assert_called_with("logistic_regression")
-
-    def test_predict_top20_loads_top20_model(self):
-        mock_registry = MagicMock()
-        mock_registry.load_pipeline.return_value = _build_dummy_pipeline()
-
-        service = PredictorService(mock_registry)
-        service.predict_top20(self._build_10_features())
-        mock_registry.load_pipeline.assert_called_with("logistic_regression_top20")
+def test_confidence_labels():
+    assert _confidence_label(0.95) == "Alta"
+    assert _confidence_label(0.70) == "Média"
+    assert _confidence_label(0.52) == "Baixa"

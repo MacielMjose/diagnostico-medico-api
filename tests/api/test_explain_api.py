@@ -1,5 +1,18 @@
 import pytest
 
+from app.core.dependencies import get_llm_provider
+
+
+class _FakeProvider:
+    provider_name = "fake/test"
+
+    def generate(self, system_prompt: str, user_prompt: str) -> str:
+        return (
+            '{"explanation": "Probabilidade elevada de SOP.", '
+            '"risk_factors": ["obesidade", "hirsutismo"], '
+            '"insights": ["solicitar perfil hormonal"]}'
+        )
+
 
 class TestExplainEndpoint:
     """Testes para o endpoint POST /api/v1/explain/."""
@@ -43,19 +56,27 @@ class TestExplainEndpoint:
         response = client.post("/api/v1/explain/", json=payload)
         assert response.status_code == 200
 
-    def test_explain_sem_features_retorna_422(self, client):
-        response = client.post(
-            "/api/v1/explain/",
-            json={"diagnosis": 1, "probability": 0.8},
-        )
-        assert response.status_code == 422
+    def test_explain_sem_features_retorna_422(self, app, client):
+        app.dependency_overrides[get_llm_provider] = lambda: _FakeProvider()
+        try:
+            response = client.post(
+                "/api/v1/explain/",
+                json={"diagnosis": 1, "probability": 0.8},
+            )
+            assert response.status_code == 422
+        finally:
+            app.dependency_overrides.pop(get_llm_provider, None)
 
-    def test_explain_sem_diagnosis_retorna_422(self, client):
-        response = client.post(
-            "/api/v1/explain/",
-            json={"features": {"Age (yrs)": 28}, "probability": 0.8},
-        )
-        assert response.status_code == 422
+    def test_explain_sem_diagnosis_retorna_422(self, app, client):
+        app.dependency_overrides[get_llm_provider] = lambda: _FakeProvider()
+        try:
+            response = client.post(
+                "/api/v1/explain/",
+                json={"features": {"Age (yrs)": 28}, "probability": 0.8},
+            )
+            assert response.status_code == 422
+        finally:
+            app.dependency_overrides.pop(get_llm_provider, None)
 
     def test_explain_campos_extra_ignorados(self, client, override_deps):
         payload = self.PAYLOAD_VALIDO.copy()

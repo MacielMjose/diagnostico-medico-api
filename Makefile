@@ -1,7 +1,7 @@
 .PHONY: help build push lint test terraform-init terraform-plan terraform-apply terraform-destroy docker-login docker-build docker-run
 
-# Load environment variables
-include .env.example
+# Load environment variables (optional — não falha se ausente)
+-include .env-example
 
 help:
 	@echo "Diagnostico Médico API - Available commands:"
@@ -32,7 +32,7 @@ lint:
 
 test:
 	pip install -e ".[dev]"
-	pytest --cov=minha_api --cov-report=html --cov-report=term-missing
+	pytest --cov=app --cov-report=html --cov-report=term-missing
 
 # Docker commands
 docker-build:
