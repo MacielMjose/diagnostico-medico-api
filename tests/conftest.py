@@ -15,6 +15,11 @@ from app.main import create_app
 
 
 @pytest.fixture
+def anyio_backend():
+    return "asyncio"
+
+
+@pytest.fixture
 def app():
     return create_app()
 
@@ -64,9 +69,6 @@ def mock_predictor():
     mock = MagicMock()
     mock.predict.return_value = PCOSPrediction(
         diagnosis=1, probability=0.85, model_version="1.0.0"
-    )
-    mock.predict_top20.return_value = PCOSPrediction(
-        diagnosis=0, probability=0.25, model_version="1.0.0"
     )
     return mock
 
@@ -124,8 +126,7 @@ def override_deps(app, mock_predictor, mock_optimizer, mock_explainer):
         get_optimizer,
         get_explainer,
         get_model_registry,
-        get_llm_client,
-        get_settings,
+        get_llm_provider,
     )
 
     app.dependency_overrides[get_predictor] = lambda: mock_predictor
@@ -133,12 +134,12 @@ def override_deps(app, mock_predictor, mock_optimizer, mock_explainer):
     app.dependency_overrides[get_explainer] = lambda: mock_explainer
 
     mock_registry = MagicMock()
-    mock_registry.load_pipeline.return_value = None
+    mock_registry.load_artifacts.return_value = None
     app.dependency_overrides[get_model_registry] = lambda: mock_registry
 
     mock_llm = AsyncMock()
-    mock_llm.chat.return_value = "Resposta simulada da LLM."
-    app.dependency_overrides[get_llm_client] = lambda: mock_llm
+    mock_llm.generate.return_value = "Resposta simulada da LLM."
+    app.dependency_overrides[get_llm_provider] = lambda: mock_llm
 
     yield
 
