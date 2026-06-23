@@ -1,6 +1,6 @@
 import httpx
 
-from minha_api.services.llm.base import LLMProvider
+from app.infrastructure.llm.base import LLMProvider
 
 
 class OllamaProvider(LLMProvider):

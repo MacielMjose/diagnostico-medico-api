@@ -46,7 +46,9 @@ BINARY_COLS_REF = [
 
 def load_and_clean() -> pd.DataFrame:
     print("Baixando dataset do Kaggle...")
-    path = kagglehub.dataset_download("prasoonkottarathil/polycystic-ovary-syndrome-pcos")
+    path = kagglehub.dataset_download(
+        "prasoonkottarathil/polycystic-ovary-syndrome-pcos"
+    )
     df = pd.read_excel(
         os.path.join(path, "PCOS_data_without_infertility.xlsx"),
         sheet_name="Full_new",
@@ -69,7 +71,11 @@ def load_and_clean() -> pd.DataFrame:
     df = pd.get_dummies(df, columns=["Blood Group"], drop_first=True, dtype=int)
 
     # Remove features redundantes por alta correlação (>0.8)
-    df.drop(columns=["Weight (Kg)", "FSH(mIU/mL)", "Waist(inch)"], inplace=True, errors="ignore")
+    df.drop(
+        columns=["Weight (Kg)", "FSH(mIU/mL)", "Waist(inch)"],
+        inplace=True,
+        errors="ignore",
+    )
 
     assert df.isnull().sum().sum() == 0, "Valores nulos remanescentes!"
     print(f"Shape após limpeza: {df.shape}")
@@ -78,7 +84,12 @@ def load_and_clean() -> pd.DataFrame:
 
 def select_top_features(df: pd.DataFrame) -> list[str]:
     corr = df.corr(numeric_only=True)["PCOS (Y/N)"].abs()
-    top = corr.drop("PCOS (Y/N)").sort_values(ascending=False).head(N_TOP_FEATURES).index.tolist()
+    top = (
+        corr.drop("PCOS (Y/N)")
+        .sort_values(ascending=False)
+        .head(N_TOP_FEATURES)
+        .index.tolist()
+    )
     print(f"\nTop {N_TOP_FEATURES} features selecionadas:")
     for i, f in enumerate(top, 1):
         print(f"  {i:2d}. {f}")
@@ -89,15 +100,19 @@ def build_pipeline(top_features: list[str]) -> ColumnTransformer:
     binary_cols = [c for c in top_features if c in BINARY_COLS_REF]
     num_cols = [c for c in top_features if c not in BINARY_COLS_REF]
 
-    num_pipeline = Pipeline([
-        ("imputer", SimpleImputer(strategy="median")),
-        ("scaler", StandardScaler()),
-    ])
+    num_pipeline = Pipeline(
+        [
+            ("imputer", SimpleImputer(strategy="median")),
+            ("scaler", StandardScaler()),
+        ]
+    )
 
-    return ColumnTransformer([
-        ("num", num_pipeline, num_cols),
-        ("bin", "passthrough", binary_cols),
-    ])
+    return ColumnTransformer(
+        [
+            ("num", num_pipeline, num_cols),
+            ("bin", "passthrough", binary_cols),
+        ]
+    )
 
 
 def train(df: pd.DataFrame, top_features: list[str]) -> dict:
@@ -110,14 +125,17 @@ def train(df: pd.DataFrame, top_features: list[str]) -> dict:
 
     preprocessor = build_pipeline(top_features)
 
-    pipe = Pipeline([
-        ("preprocessor", preprocessor),
-        ("model", LogisticRegression(max_iter=1000, class_weight="balanced")),
-    ])
+    pipe = Pipeline(
+        [
+            ("preprocessor", preprocessor),
+            ("model", LogisticRegression(max_iter=1000, class_weight="balanced")),
+        ]
+    )
     pipe.fit(X_train, y_train)
 
     # Avaliação rápida
     from sklearn.metrics import roc_auc_score
+
     y_proba = pipe.predict_proba(X_test)[:, 1]
     auc = roc_auc_score(y_test, y_proba)
     print(f"\nAUC-ROC (test set): {auc:.4f}")

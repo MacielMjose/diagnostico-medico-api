@@ -1,36 +1,105 @@
+from app.core.dependencies import get_llm_provider, get_model_registry
+from app.infrastructure.model_registry import ModelRegistry
+
+_VALID_PATIENT = {
+    "follicle_no_r": 12,
+    "follicle_no_l": 10,
+    "skin_darkening": 1,
+    "hair_growth": 1,
+    "weight_gain": 1,
+    "cycle": 4,
+    "fast_food": 1,
+    "pimples": 0,
+    "amh": 7.5,
+    "bmi": 27.0,
+    "cycle_length": 4,
+    "hair_loss": 0,
+    "age": 28,
+    "hip": 40,
+    "avg_f_size_l": 16.0,
+    "marriage_status": 3.0,
+    "endometrium": 9.0,
+    "avg_f_size_r": 17.0,
+    "pulse_rate": 74,
+    "hb": 11.5,
+}
+
+
 def test_health_endpoint(client):
     response = client.get("/health")
     assert response.status_code == 200
+    assert response.json()["status"] == "ok"
+
+
+def test_predict_endpoint_happy_path(client):
+    response = client.post("/api/v1/predict/", json=_VALID_PATIENT)
+    assert response.status_code == 200
     data = response.json()
-    assert data["status"] == "ok"
+    assert data["diagnosis"] in (0, 1)
+    assert 0.0 <= data["probability"] <= 1.0
+    assert data["confidence"] in ("Alta", "Média", "Baixa")
+    assert len(data["top_contributing_features"]) == 5
 
 
-def test_predict_endpoint_returns_500_when_no_model(client):
-    response = client.post(
-        "/api/v1/predict/",
-        json={
-            "age": 28,
-            "bmi": 24.5,
-            "follicle_no_r": 8,
-            "follicle_no_l": 6,
-            "skin_darkening": 1,
-            "hair_growth": 1,
-            "weight_gain": 0,
-            "amh": 4.2,
-            "cycle_r_i": 2,
-            "fast_food": 1,
-        },
+def test_predict_returns_503_when_no_model(app, client):
+    app.dependency_overrides[get_model_registry] = lambda: ModelRegistry(
+        "models/__inexistente__.joblib"
     )
-    assert response.status_code == 503
-    assert "Model not loaded" in response.text
+    try:
+        response = client.post("/api/v1/predict/", json=_VALID_PATIENT)
+        assert response.status_code == 503
+        assert "Model not loaded" in response.text
+    finally:
+        app.dependency_overrides.pop(get_model_registry, None)
 
 
 def test_predict_validates_input(client):
-    response = client.post(
-        "/api/v1/predict/",
-        json={"invalid": "data"},
-    )
+    response = client.post("/api/v1/predict/", json={"invalid": "data"})
     assert response.status_code == 422
+
+
+def test_explain_endpoint_parses_llm_json(app, client):
+    class _FakeProvider:
+        provider_name = "fake/test"
+
+        def generate(self, system_prompt: str, user_prompt: str) -> str:
+            return (
+                '{"explanation": "Probabilidade elevada de SOP.", '
+                '"risk_factors": ["obesidade", "hirsutismo"], '
+                '"insights": ["solicitar perfil hormonal"]}'
+            )
+
+    app.dependency_overrides[get_llm_provider] = lambda: _FakeProvider()
+    try:
+        response = client.post(
+            "/api/v1/explain/",
+            json={"features": {"BMI": 27.0}, "diagnosis": 1, "probability": 0.87},
+        )
+        assert response.status_code == 200
+        data = response.json()
+        assert data["explanation"] == "Probabilidade elevada de SOP."
+        assert data["risk_factors"] == ["obesidade", "hirsutismo"]
+        assert data["insights"] == ["solicitar perfil hormonal"]
+    finally:
+        app.dependency_overrides.pop(get_llm_provider, None)
+
+
+def test_explain_endpoint_502_on_llm_failure(app, client):
+    class _BrokenProvider:
+        provider_name = "broken/test"
+
+        def generate(self, system_prompt: str, user_prompt: str) -> str:
+            raise RuntimeError("API timeout")
+
+    app.dependency_overrides[get_llm_provider] = lambda: _BrokenProvider()
+    try:
+        response = client.post(
+            "/api/v1/explain/",
+            json={"features": {"BMI": 27.0}, "diagnosis": 1, "probability": 0.87},
+        )
+        assert response.status_code == 502
+    finally:
+        app.dependency_overrides.pop(get_llm_provider, None)
 
 
 def test_optimize_endpoint_returns_200(client):

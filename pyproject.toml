@@ -55,6 +55,11 @@ pythonpath = ["src"]
 
 [tool.ruff]
 line-length = 88
+extend-exclude = ["*.ipynb"]
 
 [tool.ruff.lint]
 select = ["E", "F", "I"]
+
+[tool.ruff.lint.per-file-ignores]
+# Scripts de treino/validação: linhas longas em mensagens e pipelines tabulares.
+"scripts/*.py" = ["E501"]

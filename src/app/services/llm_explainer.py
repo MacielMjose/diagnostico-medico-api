@@ -1,26 +1,93 @@
+import json
+import logging
+
+import anyio
+
+from app.domain.exceptions import LLMRequestError
+from app.domain.features import readable_feature
 from app.domain.models import Explanation
-from app.infrastructure.llm_client import LLMClient
+from app.infrastructure.llm.base import LLMProvider
+
+logger = logging.getLogger(__name__)
+
+_SYSTEM_PROMPT = (
+    "Você é um assistente clínico especializado em endocrinologia reprodutiva "
+    "e Síndrome dos Ovários Policísticos (SOP/PCOS). Seu papel é interpretar "
+    "resultados de modelos de machine learning e traduzi-los em linguagem "
+    "clínica clara e acionável para médicos especialistas.\n\n"
+    "Diretrizes obrigatórias:\n"
+    "- Use terminologia médica precisa e português do Brasil.\n"
+    "- Baseie-se exclusivamente nos dados fornecidos — não especule.\n"
+    "- Apresente o diagnóstico como probabilidade — nunca como certeza absoluta.\n"
+    "- Ressalte que o modelo é ferramenta de triagem, não substitui avaliação "
+    "especializada.\n\n"
+    "Responda EXCLUSIVAMENTE com um objeto JSON válido, sem texto antes ou "
+    "depois, no formato:\n"
+    "{\n"
+    '  "explanation": "Interpretação clínica em 2-3 parágrafos curtos (máx. 250 '
+    'palavras): resultado, fatores determinantes e próximos passos clínicos.",\n'
+    '  "risk_factors": ["fator de risco 1", "fator de risco 2"],\n'
+    '  "insights": ["recomendação acionável 1", "recomendação acionável 2"]\n'
+    "}"
+)
 
 
 class LLMExplainerService:
-    def __init__(self, client: LLMClient):
+    def __init__(self, client: LLMProvider):
         self.client = client
 
     def _build_prompt(self, features: dict, diagnosis: int, probability: float) -> str:
+        diagnosis_str = "POSITIVO para SOP" if diagnosis else "NEGATIVO para SOP"
+        features_block = "\n".join(
+            f"  • {readable_feature(name)}: {value}" for name, value in features.items()
+        )
         return (
-            f"Você é um endocrinologista. Paciente com os seguintes dados: {features}. "
-            f"Diagnóstico do modelo: {'PCOS' if diagnosis else 'Normal'} "
-            f"com {probability:.1%} de confiança. "
-            f"Explique os fatores de risco e forneça insights acionáveis."
+            f"## Resultado do modelo de triagem — SOP\n\n"
+            f"**Diagnóstico:** {diagnosis_str}\n"
+            f"**Probabilidade estimada:** {probability:.1%}\n\n"
+            f"**Dados / fatores determinantes:**\n{features_block}\n\n"
+            "Com base nesses dados, forneça a interpretação clínica estruturada "
+            "conforme suas diretrizes."
+        )
+
+    def _parse(self, raw: str) -> Explanation:
+        text = raw.strip()
+        # Remove cercas de código markdown, se presentes (```json ... ```).
+        if text.startswith("```"):
+            text = text.split("```", 2)[1]
+            if text.startswith("json"):
+                text = text[len("json") :]
+            text = text.strip()
+        data = json.loads(text)
+        return Explanation(
+            text=str(data["explanation"]),
+            risk_factors=list(data.get("risk_factors", [])),
+            insights=list(data.get("insights", [])),
         )
 
     async def explain(
         self, features: dict, diagnosis: int, probability: float
     ) -> Explanation:
         prompt = self._build_prompt(features, diagnosis, probability)
-        response = await self.client.chat(prompt)
-        return Explanation(
-            text=response,
-            risk_factors=["obesidade", "resistencia insulinica"],
-            insights=["recomendar dieta"],
-        )
+        try:
+            raw = await anyio.to_thread.run_sync(
+                self.client.generate, _SYSTEM_PROMPT, prompt
+            )
+        except Exception as exc:
+            logger.warning(
+                "Falha na chamada ao provedor LLM (%s): %s",
+                type(exc).__name__,
+                exc,
+            )
+            raise LLMRequestError(
+                "Falha ao gerar explicação via LLM. Verifique a configuração do "
+                "provedor (LLM_PROVIDER e chaves de API)."
+            ) from exc
+
+        try:
+            return self._parse(raw)
+        except (json.JSONDecodeError, KeyError, TypeError) as exc:
+            logger.warning("Resposta LLM em formato inesperado: %s", exc)
+            raise LLMRequestError(
+                "O provedor LLM retornou uma resposta em formato inesperado."
+            ) from exc

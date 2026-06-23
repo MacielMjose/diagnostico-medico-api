@@ -1,22 +1,40 @@
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, Field
 
 
 class PCOSInput(BaseModel):
-    model_config = ConfigDict(populate_by_name=True)
+    follicle_no_r: float = Field(..., description="Folículos — ovário direito")
+    follicle_no_l: float = Field(..., description="Folículos — ovário esquerdo")
+    skin_darkening: int = Field(
+        ..., ge=0, le=1, description="Escurecimento da pele (0/1)"
+    )
+    hair_growth: int = Field(..., ge=0, le=1, description="Hirsutismo (0/1)")
+    weight_gain: int = Field(..., ge=0, le=1, description="Ganho de peso (0/1)")
+    cycle: float = Field(..., description="Ciclo (2=Regular, 4=Irregular)")
+    fast_food: int = Field(..., ge=0, le=1, description="Consumo de fast food (0/1)")
+    pimples: int = Field(..., ge=0, le=1, description="Acne (0/1)")
+    amh: float = Field(..., ge=0, description="Hormônio Antimülleriano em ng/mL")
+    bmi: float = Field(..., ge=10, description="IMC em kg/m²")
+    cycle_length: float = Field(..., ge=1, description="Duração do ciclo em dias")
+    hair_loss: int = Field(..., ge=0, le=1, description="Alopecia (0/1)")
+    age: float = Field(..., ge=10, le=100, description="Idade em anos")
+    hip: float = Field(..., ge=20, description="Circunferência do quadril em polegadas")
+    avg_f_size_l: float = Field(..., ge=0, description="Tam. médio folículos esq. (mm)")
+    marriage_status: float = Field(..., ge=0, description="Anos de casamento")
+    endometrium: float = Field(..., ge=0, description="Espessura do endométrio em mm")
+    avg_f_size_r: float = Field(..., ge=0, description="Tam. médio folículos dir. (mm)")
+    pulse_rate: float = Field(..., ge=30, description="Frequência cardíaca em bpm")
+    hb: float = Field(..., ge=0, description="Hemoglobina em g/dL")
 
-    age: float = Field(..., alias="Age (yrs)")
-    bmi: float = Field(..., alias="BMI")
-    follicle_no_r: float = Field(..., alias="Follicle No. (R)")
-    follicle_no_l: float = Field(..., alias="Follicle No. (L)")
-    skin_darkening: int = Field(..., alias="Skin darkening (Y/N)")
-    hair_growth: int = Field(..., alias="hair growth(Y/N)")
-    weight_gain: int = Field(..., alias="Weight gain(Y/N)")
-    amh: float = Field(..., alias="AMH(ng/mL)")
-    cycle_r_i: int = Field(..., alias="Cycle(R/I)")
-    fast_food: int = Field(..., alias="Fast food (Y/N)")
+
+class FeatureContributionOutput(BaseModel):
+    feature: str
+    contribution: float
+    direction: str
 
 
 class PCOSOutput(BaseModel):
     diagnosis: int
     probability: float
+    confidence: str
     model_version: str
+    top_contributing_features: list[FeatureContributionOutput]
