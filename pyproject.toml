@@ -4,19 +4,28 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "diagnostico-medico-api"
-version = "0.2.0"
-description = "API de Diagnóstico Médico — SOP com interpretação por LLM"
-requires-python = ">=3.11"
+
+version = "1.0.0"
+description = "PCOS Diagnosis API - Medical diagnostic system with ML models and LLM integration"
+requires-python = ">=3.12"
 dependencies = [
-    "fastapi>=0.110.0",
-    "uvicorn[standard]>=0.29.0",
+    "fastapi>=0.110",
+    "uvicorn[standard]>=0.30",
+    "pydantic>=2.0",
     "pydantic-settings>=2.0",
-    # ML / Model serving
+    "starlette>=0.40",
     "scikit-learn>=1.4",
-    "numpy>=1.26",
+    "xgboost>=2.0",
     "pandas>=2.2",
+    "numpy>=1.26",
     "shap>=0.45",
     "joblib>=1.3",
+    "httpx>=0.27",
+    "python-multipart>=0.0.9",
+    "structlog>=24.0",
+    "prometheus-fastapi-instrumentator>=7.0",
+    "Pillow>=10.0",
+    "anyio>=4.0",
     # LLM providers
     "openai>=1.30",
     "anthropic>=0.28",
@@ -33,6 +42,8 @@ dev = [
 training = [
     "openpyxl>=3.1",
     "kagglehub>=0.2",
+    "httpx>=0.27",
+    "ruff>=0.4",
 ]
 
 [tool.setuptools.packages.find]

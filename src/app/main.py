@@ -1,0 +1,57 @@
+from fastapi import FastAPI, Request
+from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse
+
+from app.api.v1.router import api_v1_router
+from app.core.config import Settings
+from app.core.logger import setup_logging
+from app.domain.exceptions import (
+    InvalidFeaturesError,
+    LLMRequestError,
+    ModelNotLoadedError,
+)
+from app.monitoring.middleware import TimingMiddleware
+
+
+def create_app() -> FastAPI:
+    settings = Settings()
+    setup_logging(settings)
+
+    app = FastAPI(
+        title="PCOS Diagnosis API",
+        version="1.0.0",
+        docs_url="/docs",
+        redoc_url="/redoc",
+    )
+
+    app.add_middleware(
+        CORSMiddleware,
+        allow_origins=["*"],
+        allow_credentials=True,
+        allow_methods=["*"],
+        allow_headers=["*"],
+    )
+    app.add_middleware(TimingMiddleware)
+
+    @app.exception_handler(ModelNotLoadedError)
+    async def model_not_loaded_handler(request: Request, exc: ModelNotLoadedError):
+        return JSONResponse(status_code=503, content={"error": str(exc)})
+
+    @app.exception_handler(InvalidFeaturesError)
+    async def invalid_features_handler(request: Request, exc: InvalidFeaturesError):
+        return JSONResponse(status_code=400, content={"error": str(exc)})
+
+    @app.exception_handler(LLMRequestError)
+    async def llm_error_handler(request: Request, exc: LLMRequestError):
+        return JSONResponse(status_code=502, content={"error": str(exc)})
+
+    app.include_router(api_v1_router, prefix="/api/v1")
+
+    @app.get("/health")
+    async def health():
+        return {"status": "ok", "version": "1.0.0"}
+
+    return app
+
+
+app = create_app()
