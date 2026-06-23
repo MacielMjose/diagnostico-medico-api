@@ -1,15 +1,28 @@
 # .github/workflows/pipeline.yml
 #
-# Pipeline CI/CD — roda em todo push e pull request
-# Stages: lint → test → build-image → push-ecr → deploy-fargate
+# Pipeline CI/CD — separado em 3 stages independentes:
+# AUTOMÁTICO: lint → test → build-image (local, sem push)
+# MANUAL: push-to-ecr (workflow_dispatch)
+# MANUAL: deploy-to-ecs (workflow_dispatch)
 
 name: CI/CD Pipeline
 
 on:
   push:
-    branches: ["**"]        # qualquer branch dispara lint + test
+    branches: ["**"]        # qualquer branch dispara automático
   pull_request:
     branches: [main]
+  workflow_dispatch:
+    inputs:
+      action:
+        description: 'Action to perform'
+        required: true
+        default: 'push'
+        type: choice
+        options:
+          - push      # Build + Tag + Push to ECR
+          - deploy    # Deploy to ECS (requires latest in ECR)
+          - full      # Push + Deploy (full release)
 
 env:
   AWS_REGION: us-east-1
@@ -20,9 +33,9 @@ env:
 
 jobs:
 
-  # ─────────────────────────────────────────────
-  # 1. LINT — verifica estilo e erros de código
-  # ─────────────────────────────────────────────
+  # ─────────────────────────────────────────────────────────
+  # 1. LINT — verifica estilo e erros de código (AUTOMÁTICO)
+  # ─────────────────────────────────────────────────────────
   lint:
     name: Lint
     runs-on: ubuntu-latest
@@ -47,13 +60,13 @@ jobs:
         run: ruff format --check .
 
 
-  # ─────────────────────────────────────────────
-  # 2. TEST — roda os testes com cobertura
-  # ─────────────────────────────────────────────
+  # ─────────────────────────────────────────────────────────
+  # 2. TEST — roda os testes com cobertura (AUTOMÁTICO)
+  # ─────────────────────────────────────────────────────────
   test:
     name: Test
     runs-on: ubuntu-latest
-    needs: lint                # só roda se lint passou
+    needs: lint
 
     steps:
       - name: Checkout do código
@@ -78,13 +91,34 @@ jobs:
           path: .coverage
 
 
-  # ─────────────────────────────────────────────
-  # 3. BUILD IMAGE — constrói imagem Docker
-  # ─────────────────────────────────────────────
+  # ─────────────────────────────────────────────────────────
+  # 3. BUILD — constrói imagem Docker localmente (AUTOMÁTICO)
+  # ─────────────────────────────────────────────────────────
   build-image:
     name: Build Docker Image
     runs-on: ubuntu-latest
-    needs: test                # só roda se testes passaram
+    needs: test
+
+    steps:
+      - name: Checkout do código
+        uses: actions/checkout@v4
+
+      - name: Build da imagem Docker
+        run: |
+          docker build -t diagnostico-medico-api:${{ github.sha }} .
+          docker build -t diagnostico-medico-api:latest .
+
+      - name: ✓ Build concluído com sucesso
+        run: echo "Image built: diagnostico-medico-api:${{ github.sha }}"
+
+
+  # ─────────────────────────────────────────────────────────
+  # 4. PUSH — faz push para ECR (MANUAL via workflow_dispatch)
+  # ─────────────────────────────────────────────────────────
+  push-to-ecr:
+    name: Push to ECR
+    runs-on: ubuntu-latest
+    if: github.event_name == 'workflow_dispatch' && (contains(github.event.inputs.action, 'push') || contains(github.event.inputs.action, 'full'))
 
     permissions:
       id-token: write
@@ -107,28 +141,49 @@ jobs:
         id: login-ecr
         uses: aws-actions/amazon-ecr-login@v2
 
-      - name: Build, tag e push da imagem para Amazon ECR
+      - name: Build e push da imagem para Amazon ECR
         id: image
         env:
           REGISTRY: ${{ steps.login-ecr.outputs.registry }}
           REPOSITORY: ${{ env.ECR_REPOSITORY }}
         run: |
-          # Build image
+          # Build image com tags
           docker build -t $REGISTRY/$REPOSITORY:latest .
           docker build -t $REGISTRY/$REPOSITORY:${{ github.sha }} .
 
-          # Push both tags to ECR
+          # Push ambas tags para ECR
           docker push $REGISTRY/$REPOSITORY:latest
           docker push $REGISTRY/$REPOSITORY:${{ github.sha }}
 
-          # Output image with latest tag (for reference)
+          # Output da imagem
           echo "image=$REGISTRY/$REPOSITORY:latest" >> $GITHUB_OUTPUT
+          echo "✓ Imagem enviada para ECR"
 
       - name: Output da imagem
-        run: echo "Built image - ${{ steps.image.outputs.image }}"
+        run: echo "Built and pushed - ${{ steps.image.outputs.image }}"
 
-      - name: Deploy to ECS (only on main)
-        if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+
+  # ─────────────────────────────────────────────────────────
+  # 5. DEPLOY — faz deploy para ECS (MANUAL via workflow_dispatch)
+  # ─────────────────────────────────────────────────────────
+  deploy-to-ecs:
+    name: Deploy to ECS
+    runs-on: ubuntu-latest
+    if: github.event_name == 'workflow_dispatch' && (contains(github.event.inputs.action, 'deploy') || contains(github.event.inputs.action, 'full'))
+    needs: [build-image, push-to-ecr]
+
+    permissions:
+      id-token: write
+      contents: read
+
+    steps:
+      - name: Configurar AWS credentials (OIDC)
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_ROLE_TO_ASSUME }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Update ECS service
         run: |
           aws ecs update-service \
             --cluster ${{ env.ECS_CLUSTER }} \
@@ -139,7 +194,6 @@ jobs:
           echo "✓ ECS deployment triggered"
 
       - name: Wait for service stability
-        if: github.ref == 'refs/heads/main' && github.event_name == 'push'
         run: |
           aws ecs wait services-stable \
             --cluster ${{ env.ECS_CLUSTER }} \
