@@ -9,21 +9,24 @@ Combina um modelo de **Regressão Logística** treinado em dados clínicos com *
 ## Arquitetura
 
 ```
-POST /diagnose
-       │
-       ▼
- PatientData (20 campos clínicos)
-       │
-       ├─► pcos_classifier.py   →  Regressão Logística + SHAP
-       │       (scikit-learn)         (probabilidade, top 5 fatores)
-       │
-       └─► interpreter.py       →  Prompt Engineering + LLM
-               (langauge model)        (interpretação clínica em PT-BR)
-                     │
-             ┌───────┴────────┐
-         OpenAI          Anthropic       Ollama (local)
-         GPT-4o-mini     Claude Haiku    LLaMA / Falcon
+POST /api/v1/predict              POST /api/v1/explain
+       │                                  │
+       ▼                                  ▼
+ PCOSInput (20 campos clínicos)    features + diagnóstico + probabilidade
+       │                                  │
+       ▼                                  ▼
+ predictor.py                      llm_explainer.py
+   Regressão Logística + SHAP        Prompt Engineering + LLM
+   (probabilidade, top 5 fatores)    (interpretação clínica em JSON)
+                                           │
+                              ┌────────────┼─────────────┐
+                          OpenAI      Anthropic    Ollama (local)    Gemini
+                          GPT-4o-mini Claude Haiku LLaMA / Falcon    2.0 Flash
 ```
+
+O fluxo é em duas chamadas: o cliente obtém a predição em `/api/v1/predict` e,
+opcionalmente, envia o resultado para `/api/v1/explain` para receber a
+interpretação clínica gerada por LLM.
 
 ### Estrutura do projeto
 
@@ -53,9 +56,8 @@ diagnostico-medico-api/
 ├── models/
 │   └── pcos_model.joblib           # Artefato gerado pelo script (não versionado)
 ├── tests/
-│   ├── test_main.py
-│   ├── test_classifier.py
-│   └── test_interpreter.py
+│   ├── api/test_predict_api.py        # Endpoints predict / explain / optimize
+│   └── unit/                          # predictor, explainer, factory LLM, GA
 ├── pcos_logistic_regression_top20.ipynb   # Notebook de exploração / referência
 └── pyproject.toml
 ```
@@ -81,7 +83,7 @@ As 20 features selecionadas incluem: número de folículos, AMH, padrão do cicl
 
 ### Pré-requisitos
 
-- Python 3.11+
+- Python 3.12+
 - Credenciais Kaggle (`~/.kaggle/kaggle.json` ou variáveis `KAGGLE_USERNAME` / `KAGGLE_KEY`)
 - Chave de API do provedor LLM escolhido
 
@@ -100,7 +102,7 @@ pip install -e ".[training]"
 Crie um arquivo `.env` na raiz do projeto:
 
 ```env
-# Provedor LLM: openai | anthropic | ollama
+# Provedor LLM: openai | anthropic | ollama | gemini
 LLM_PROVIDER=openai
 
 # OpenAI
@@ -149,15 +151,17 @@ A documentação interativa fica disponível em `http://localhost:8000/docs`.
 
 ## Endpoints
 
+Todas as rotas de negócio ficam sob o prefixo `/api/v1`.
+
 ### `GET /health`
 
 ```json
-{"status": "healthy"}
+{"status": "ok", "version": "1.0.0"}
 ```
 
-### `POST /diagnose`
+### `POST /api/v1/predict/`
 
-Recebe dados clínicos de uma paciente e retorna diagnóstico + interpretação LLM.
+Recebe os 20 campos clínicos e retorna a predição com explicabilidade SHAP.
 
 **Request body:**
 
@@ -192,26 +196,56 @@ Recebe dados clínicos de uma paciente e retorna diagnóstico + interpretação 
 
 ```json
 {
-  "diagnosis": true,
+  "diagnosis": 1,
   "probability": 0.87,
   "confidence": "Alta",
+  "model_version": "1.0.0",
   "top_contributing_features": [
     { "feature": "num__Follicle No. (R)", "contribution": 1.3123, "direction": "positiva" },
     { "feature": "num__Cycle(R/I)",       "contribution": 0.6091, "direction": "positiva" },
     { "feature": "bin__hair growth(Y/N)", "contribution": 0.5850, "direction": "positiva" },
     { "feature": "bin__Skin darkening (Y/N)", "contribution": 0.5542, "direction": "positiva" },
     { "feature": "num__Follicle No. (L)", "contribution": 0.4782, "direction": "positiva" }
-  ],
-  "interpretation": "O modelo de triagem indica resultado POSITIVO para SOP com probabilidade de 87%, sustentado principalmente pelo elevado número de folículos ovarianos bilateralmente (12 à direita e 10 à esquerda) e pelo padrão de ciclo irregular — achados consistentes com os critérios de Rotterdam...",
-  "disclaimer": "Este resultado é apenas uma ferramenta de apoio diagnóstico e não substitui avaliação médica especializada."
+  ]
 }
 ```
+
+Retorna `503` se o artefato do modelo não estiver disponível.
+
+### `POST /api/v1/explain/`
+
+Recebe o resultado da predição e gera a interpretação clínica via LLM.
+
+**Request body:**
+
+```json
+{
+  "features": { "BMI": 27.0, "AMH(ng/mL)": 7.5, "Follicle No. (R)": 12 },
+  "diagnosis": 1,
+  "probability": 0.87
+}
+```
+
+**Response:**
+
+```json
+{
+  "explanation": "O modelo de triagem indica resultado POSITIVO para SOP com probabilidade de 87%, sustentado principalmente pelo elevado número de folículos ovarianos e pelo padrão de ciclo irregular — achados consistentes com os critérios de Rotterdam...",
+  "risk_factors": ["obesidade", "resistência insulínica", "hirsutismo"],
+  "insights": ["solicitar perfil hormonal completo", "avaliar glicemia de jejum e insulina basal"]
+}
+```
+
+Retorna `502` se o provedor LLM falhar ou devolver formato inesperado.
+
+> Há ainda as rotas `POST /api/v1/optimize/` (otimização genética de
+> hiperparâmetros) e `POST /api/v1/ultrasound/predict` (upload de imagem).
 
 ---
 
 ## Integração LLM
 
-A integração é **agnóstica ao provedor**: basta alterar `LLM_PROVIDER` no `.env` para trocar entre OpenAI, Anthropic e Ollama sem mudar nenhuma linha de código.
+A integração é **agnóstica ao provedor**: basta alterar `LLM_PROVIDER` no `.env` para trocar entre OpenAI, Anthropic, Ollama e Gemini sem mudar nenhuma linha de código. A seleção é feita por `infrastructure/llm/factory.py`, que instancia o provider correspondente; todos implementam a interface `LLMProvider`.
 
 | `LLM_PROVIDER` | Provedor | Custo | Requer |
 |---|---|---|---|
@@ -222,12 +256,12 @@ A integração é **agnóstica ao provedor**: basta alterar `LLM_PROVIDER` no `.
 
 ### Prompt Engineering
 
-O `interpreter.py` aplica duas camadas de prompt:
+O `llm_explainer.py` aplica duas camadas de prompt:
 
-- **System prompt** — define uma persona de especialista em endocrinologia reprodutiva com regras rígidas: estrutura em 3 parágrafos, máximo de 250 palavras, terminologia clínica precisa, resultado tratado como probabilidade (nunca certeza).
-- **User prompt** — inclui resultado do modelo, top 5 fatores com contribuição SHAP e direção (↑ favorece SOP / ↓ reduz probabilidade), e resumo clínico completo da paciente.
+- **System prompt** — define uma persona de especialista em endocrinologia reprodutiva com regras rígidas: terminologia clínica precisa, resultado tratado como probabilidade (nunca certeza) e ressalva de que o modelo é ferramenta de triagem. Exige resposta **exclusivamente em JSON** com os campos `explanation`, `risk_factors` e `insights`.
+- **User prompt** — inclui o diagnóstico, a probabilidade estimada e os fatores/dados fornecidos no request.
 
-**Degradação graciosa:** se o LLM estiver indisponível (sem chave, timeout, etc.), o endpoint ainda responde com o diagnóstico numérico e uma mensagem de fallback — a API nunca retorna erro por causa do LLM.
+**Tratamento de falha:** se o provedor LLM estiver indisponível (sem chave, timeout) ou devolver um JSON inválido, o endpoint `/api/v1/explain` retorna **HTTP 502**. A predição (`/api/v1/predict`) é independente e continua funcionando mesmo sem LLM configurado.
 
 ---
 
@@ -237,13 +271,15 @@ O `interpreter.py` aplica duas camadas de prompt:
 pytest --cov=app --cov-report=term-missing
 ```
 
-Os testes utilizam mocks para o modelo e para o provedor LLM — não é necessário ter o artefato treinado nem API keys para rodar a suíte.
+Os testes utilizam mocks para o provedor LLM e para o registro de modelo — não é necessário ter API keys para rodar a suíte. O teste de `/predict` usa o artefato `models/pcos_model.joblib` versionado no repositório.
 
 | Arquivo | O que testa |
 |---|---|
-| `test_main.py` | Endpoints FastAPI, validação de payload, erros 422/503 |
-| `test_classifier.py` | Lógica de confiança, estrutura do resultado, erro sem modelo |
-| `test_interpreter.py` | Construção dos prompts, chamada ao LLM, fallback em caso de falha |
+| `tests/api/test_predict_api.py` | Endpoints predict/explain/optimize, validação 422, erro 503 (sem modelo) e 502 (falha LLM) |
+| `tests/unit/test_predictor.py` | Lógica de confiança, estrutura do resultado, erro sem modelo |
+| `tests/unit/test_explainer.py` | Construção do prompt, parsing do JSON e erro em caso de falha |
+| `tests/unit/test_llm_factory.py` | Seleção de provedor e erro para provedor inválido |
+| `tests/unit/test_genetic_operators.py` | Operadores do otimizador genético |
 
 ---
 
