@@ -73,24 +73,26 @@ def _fake_artifacts():
     }
 
 
-def test_predict_returns_prediction_with_top5():
-    registry = MagicMock()
-    registry.load_artifacts.return_value = _fake_artifacts()
+class TestPredictorService:
+    """Testes para o PredictorService (predição de diagnóstico)."""
 
-    result = PredictorService(registry).predict(_PATIENT)
+    def test_predict_returns_prediction_with_top5(self):
+        registry = MagicMock()
+        registry.load_artifacts.return_value = _fake_artifacts()
 
-    assert result.diagnosis == 1
-    assert result.probability == pytest.approx(0.87)
-    assert result.confidence == "Alta"
-    assert len(result.top_contributing_features) == 5
+        result = PredictorService(registry).predict(_PATIENT)
 
+        assert result.diagnosis == 1
+        assert result.probability == pytest.approx(0.87)
+        assert result.confidence == "Alta"
+        assert len(result.top_contributing_features) == 5
 
-def test_predict_raises_when_model_missing():
-    registry = MagicMock()
-    registry.load_artifacts.return_value = None
+    def test_predict_raises_when_model_missing(self):
+        registry = MagicMock()
+        registry.load_artifacts.return_value = None
 
-    with pytest.raises(ModelNotLoadedError):
-        PredictorService(registry).predict(_PATIENT)
+        with pytest.raises(ModelNotLoadedError):
+            PredictorService(registry).predict(_PATIENT)
 
 
 def test_confidence_labels():
