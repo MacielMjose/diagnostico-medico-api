@@ -1,5 +1,21 @@
+import pytest
 from app.core.dependencies import get_llm_provider, get_model_registry
 from app.infrastructure.model_registry import ModelRegistry
+
+
+class TestHealthEndpoint:
+    """Testes para o endpoint GET /health."""
+
+    def test_health_returns_ok(self, client):
+        response = client.get("/health")
+        assert response.status_code == 200
+        data = response.json()
+        assert data["status"] == "ok"
+
+    def test_health_returns_version(self, client):
+        response = client.get("/health")
+        assert response.json()["version"] == "1.0.0"
+
 
 _VALID_PATIENT = {
     "follicle_no_r": 12,
@@ -25,37 +41,51 @@ _VALID_PATIENT = {
 }
 
 
-def test_health_endpoint(client):
-    response = client.get("/health")
-    assert response.status_code == 200
-    assert response.json()["status"] == "ok"
+class TestPredictEndpoint:
+    """Testes para o endpoint POST /api/v1/predict/."""
 
+    def test_predict_input_invalido_retorna_422(self, client):
+        response = client.post("/api/v1/predict/", json={"invalido": "dados"})
+        assert response.status_code == 422
 
-def test_predict_endpoint_happy_path(client):
-    response = client.post("/api/v1/predict/", json=_VALID_PATIENT)
-    assert response.status_code == 200
-    data = response.json()
-    assert data["diagnosis"] in (0, 1)
-    assert 0.0 <= data["probability"] <= 1.0
-    assert data["confidence"] in ("Alta", "Média", "Baixa")
-    assert len(data["top_contributing_features"]) == 5
+    def test_predict_campos_faltando_retorna_422(self, client):
+        payload = {"age": 28, "bmi": 24.5}
+        response = client.post("/api/v1/predict/", json=payload)
+        assert response.status_code == 422
 
-
-def test_predict_returns_503_when_no_model(app, client):
-    app.dependency_overrides[get_model_registry] = lambda: ModelRegistry(
-        "models/__inexistente__.joblib"
-    )
-    try:
+    def test_predict_happy_path(self, client):
         response = client.post("/api/v1/predict/", json=_VALID_PATIENT)
-        assert response.status_code == 503
-        assert "Model not loaded" in response.text
-    finally:
-        app.dependency_overrides.pop(get_model_registry, None)
+        assert response.status_code == 200
+        data = response.json()
+        assert data["diagnosis"] in (0, 1)
+        assert 0.0 <= data["probability"] <= 1.0
+        assert data["confidence"] in ("Alta", "Média", "Baixa")
+        assert len(data["top_contributing_features"]) == 5
 
+    def test_predict_returns_503_when_no_model(self, app, client):
+        app.dependency_overrides[get_model_registry] = lambda: ModelRegistry(
+            "models/__inexistente__.joblib"
+        )
+        try:
+            response = client.post("/api/v1/predict/", json=_VALID_PATIENT)
+            assert response.status_code == 503
+            assert "Model not loaded" in response.text
+        finally:
+            app.dependency_overrides.pop(get_model_registry, None)
 
-def test_predict_validates_input(client):
-    response = client.post("/api/v1/predict/", json={"invalid": "data"})
-    assert response.status_code == 422
+    def test_predict_com_mock_retorna_200(self, client, override_deps):
+        response = client.post("/api/v1/predict/", json=_VALID_PATIENT)
+        assert response.status_code == 200
+        data = response.json()
+        assert "diagnosis" in data
+        assert "probability" in data
+        assert "model_version" in data
+
+    def test_predict_com_mock_diagnosis_valor(self, client, override_deps):
+        response = client.post("/api/v1/predict/", json=_VALID_PATIENT)
+        data = response.json()
+        assert data["diagnosis"] in (0, 1)
+        assert 0.0 <= data["probability"] <= 1.0
 
 
 def test_explain_endpoint_parses_llm_json(app, client):

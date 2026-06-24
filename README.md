@@ -2,6 +2,29 @@
 
 API de suporte diagnóstico para **Síndrome dos Ovários Policísticos (SOP/PCOS)** desenvolvida como parte do Tech Challenge — Fase 2 do programa IADT.
 
+## Stack
+
+- **API**: FastAPI + Uvicorn
+- **ML**: scikit-learn, XGBoost
+- **Otimização**: Algoritmo Genético personalizado
+- **LLM**: OpenAI GPT-4 (via httpx)
+- **Monitoramento**: Prometheus, structlog
+- **Infra**: Docker, Terraform (AWS ECS Fargate)
+- **CI/CD**: GitHub Actions
+
+## Endpoints
+
+| Método | Rota | Descrição |
+|---|---|---|
+| `GET` | `/health` | Health check |
+| `POST` | `/api/v1/predict/` | Predição com todas as features |
+| `POST` | `/api/v1/predict/top20` | Predição com top 20 features |
+| `POST` | `/api/v1/ultrasound/predict` | Classificação de imagem de ultrassom |
+| `POST` | `/api/v1/optimize/` | Otimização de hiperparâmetros via AG |
+| `POST` | `/api/v1/explain/` | Explicação do diagnóstico via LLM |
+| `GET` | `/docs` | Swagger UI |
+| `GET` | `/redoc` | ReDoc |
+
 Combina um modelo de **Regressão Logística** treinado em dados clínicos com **explicabilidade SHAP** e **interpretação em linguagem natural via LLM**, permitindo que médicos recebam não apenas um resultado numérico, mas uma análise clínica contextualizada.
 
 ---
