@@ -200,13 +200,11 @@ resource "aws_ecs_task_definition" "app" {
     Name = "${var.app_name}-task-definition"
   }
 
-  depends_on = concat(
-    [
-      aws_cloudwatch_log_group.ecs,
-      aws_iam_role_policy.ecs_task_execution_ecr_cloudwatch
-    ],
-    values(aws_secretsmanager_secret.app_secrets)
-  )
+  depends_on = [
+    aws_cloudwatch_log_group.ecs,
+    aws_iam_role_policy.ecs_task_execution_ecr_cloudwatch,
+    aws_secretsmanager_secret.app_secrets,
+  ]
 }
 
 # ECS Service
