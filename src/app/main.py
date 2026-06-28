@@ -29,6 +29,7 @@ def create_app() -> FastAPI:
             settings.posthog_api_key = posthog_api_key
         except ValueError as e:
             import structlog
+
             logger = structlog.get_logger()
             logger.warning(
                 "posthog_api_key_not_found",

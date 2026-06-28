@@ -27,9 +27,7 @@ async def explain(
 
     capture_llm_request(
         provider=settings.llm_provider,
-        model=getattr(
-            settings, f"{settings.llm_provider}_model", "unknown"
-        ),
+        model=getattr(settings, f"{settings.llm_provider}_model", "unknown"),
         duration=duration,
         status="success",
     )

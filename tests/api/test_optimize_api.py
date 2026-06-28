@@ -1,4 +1,4 @@
-﻿# TODO: Teste comentado temporariamente enquanto as dependências não estão prontas
+# TODO: Teste comentado temporariamente enquanto as dependências não estão prontas
 # Descomente quando:
 # 1. Modelos XGBoost forem treinados
 # 2. LLM_API_KEY estiver configurada
