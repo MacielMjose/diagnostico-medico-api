@@ -99,6 +99,7 @@ jobs:
         run: |
           docker build -t diagnostico-medico-api:${{ github.sha }} .
           docker build -t diagnostico-medico-api:latest .
+
       - name: Build completed successfully
         run: echo "Image built: diagnostico-medico-api:${{ github.sha }}"
 
@@ -143,6 +144,7 @@ jobs:
 
           echo "image=$REGISTRY/$REPOSITORY:latest" >> $GITHUB_OUTPUT
           echo "Image pushed to ECR"
+
       - name: Output image
         run: echo "Built and pushed - ${{ steps.image.outputs.image }}"
 
@@ -176,10 +178,12 @@ jobs:
         run: |
           cd terraform
           terraform init
+
       - name: Terraform Plan
         run: |
           cd terraform
           terraform plan -out=tfplan
+
       - name: Terraform Apply (Deploy)
         run: |
           cd terraform
@@ -191,6 +195,7 @@ jobs:
           echo ""
           echo "Secrets created in AWS Secrets Manager:"
           terraform output -json secrets_arns 2>/dev/null | jq '.' || echo "No secrets output available"
+
       - name: Wait for ECS service stability
         run: |
           aws ecs wait services-stable \
