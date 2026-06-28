@@ -1,10 +1,4 @@
 # .github/workflows/pipeline.yml
-#
-# CI/CD Pipeline - automated stages for lint, test, build, push, deploy
-# AUTOMATIC: lint -> test -> build-image (on every push)
-# MANUAL: push-to-ecr (workflow_dispatch)
-# MANUAL: deploy-to-ecs (workflow_dispatch)
-
 name: CI/CD Pipeline
 
 on:
@@ -37,7 +31,6 @@ jobs:
   lint:
     name: Lint
     runs-on: ubuntu-latest
-
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -57,12 +50,10 @@ jobs:
       - name: Run Ruff (formatter)
         run: ruff format --check .
 
-
   test:
     name: Test
     runs-on: ubuntu-latest
     needs: lint
-
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -85,12 +76,10 @@ jobs:
           name: coverage-report
           path: .coverage
 
-
   build-image:
     name: Build Docker Image
     runs-on: ubuntu-latest
     needs: test
-
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -101,21 +90,17 @@ jobs:
           docker build -t diagnostico-medico-api:latest .
 
       - name: Build completed successfully
-        run: echo "Image built: diagnostico-medico-api:${{ github.sha }}"
-
+        run: echo "Image built diagnostico-medico-api:${{ github.sha }}"
 
   push-to-ecr:
     name: Push to ECR
     runs-on: ubuntu-latest
-    if: github.event_name == 'workflow_dispatch' && (contains(github.event.inputs.action, 'push') || contains(github.event.inputs.action, 'full'))
-
+    if: "github.event_name == 'workflow_dispatch' && (contains(github.event.inputs.action, 'push') || contains(github.event.inputs.action, 'full'))"
     permissions:
       id-token: write
       contents: read
-
     outputs:
       image: ${{ steps.image.outputs.image }}
-
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -138,27 +123,21 @@ jobs:
         run: |
           docker build -t $REGISTRY/$REPOSITORY:latest .
           docker build -t $REGISTRY/$REPOSITORY:${{ github.sha }} .
-
           docker push $REGISTRY/$REPOSITORY:latest
           docker push $REGISTRY/$REPOSITORY:${{ github.sha }}
-
           echo "image=$REGISTRY/$REPOSITORY:latest" >> $GITHUB_OUTPUT
-          echo "Image pushed to ECR"
 
       - name: Output image
-        run: echo "Built and pushed - ${{ steps.image.outputs.image }}"
-
+        run: echo "Built and pushed ${{ steps.image.outputs.image }}"
 
   deploy-to-ecs:
     name: Deploy to ECS
     runs-on: ubuntu-latest
     needs: [build-image, push-to-ecr]
-    if: always() && needs.build-image.result == 'success' && (needs.push-to-ecr.result == 'success' || needs.push-to-ecr.result == 'skipped') && github.event_name == 'workflow_dispatch' && (contains(github.event.inputs.action, 'deploy') || contains(github.event.inputs.action, 'full'))
-
+    if: "always() && needs.build-image.result == 'success' && (needs.push-to-ecr.result == 'success' || needs.push-to-ecr.result == 'skipped') && github.event_name == 'workflow_dispatch' && (contains(github.event.inputs.action, 'deploy') || contains(github.event.inputs.action, 'full'))"
     permissions:
       id-token: write
       contents: read
-
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -175,26 +154,16 @@ jobs:
           aws-region: ${{ env.AWS_REGION }}
 
       - name: Terraform Init
-        run: |
-          cd terraform
-          terraform init
+        run: terraform init
+        working-directory: terraform
 
       - name: Terraform Plan
-        run: |
-          cd terraform
-          terraform plan -out=tfplan
+        run: terraform plan -out=tfplan
+        working-directory: terraform
 
-      - name: Terraform Apply (Deploy)
-        run: |
-          cd terraform
-          terraform apply \
-            -auto-approve \
-            tfplan
-
-          echo "Terraform apply completed"
-          echo ""
-          echo "Secrets created in AWS Secrets Manager:"
-          terraform output -json secrets_arns 2>/dev/null | jq '.' || echo "No secrets output available"
+      - name: Terraform Apply
+        run: terraform apply -auto-approve tfplan
+        working-directory: terraform
 
       - name: Wait for ECS service stability
         run: |
@@ -202,5 +171,4 @@ jobs:
             --cluster ${{ env.ECS_CLUSTER }} \
             --services ${{ env.ECS_SERVICE }} \
             --region ${{ env.AWS_REGION }}
-
           echo "Service is stable and running latest image"
