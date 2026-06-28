@@ -1,3 +1,5 @@
+import os
+
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -27,6 +29,10 @@ class Settings(BaseSettings):
     log_level: str = "INFO"
     max_image_size_mb: int = 10
 
+    # Application metadata
+    app_name: str = "diagnostico-medico-api"
+    environment: str = os.environ.get("ENVIRONMENT", "dev")
+
     # PostHog analytics
     posthog_api_key: str = ""
-    posthog_enabled: bool = False
+    posthog_enabled: bool = os.environ.get("POSTHOG_ENABLED", "false").lower() == "true"

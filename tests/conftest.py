@@ -15,13 +15,14 @@ from app.main import create_app
 
 
 @pytest.fixture(autouse=True)
-def mock_posthog():
-    with patch("app.monitoring.posthog.get_posthog_client", return_value=None):
-        with patch("app.monitoring.posthog.capture_event"):
-            with patch("app.monitoring.posthog.capture_request"):
-                with patch("app.monitoring.posthog.capture_prediction"):
-                    with patch("app.monitoring.posthog.capture_llm_request"):
-                        yield
+def mock_aws_and_posthog():
+    with patch("app.infrastructure.secrets_manager.boto3.client"):
+        with patch("app.monitoring.posthog.get_posthog_client", return_value=None):
+            with patch("app.monitoring.posthog.capture_event"):
+                with patch("app.monitoring.posthog.capture_request"):
+                    with patch("app.monitoring.posthog.capture_prediction"):
+                        with patch("app.monitoring.posthog.capture_llm_request"):
+                            yield
 
 
 @pytest.fixture

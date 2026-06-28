@@ -200,19 +200,19 @@ jobs:
       - name: Terraform Plan
         run: |
           cd terraform
-          terraform plan \
-            -var="posthog_api_key=${{ secrets.POSTHOG_API_KEY }}" \
-            -out=tfplan
+          terraform plan -out=tfplan
 
       - name: Terraform Apply (Deploy)
         run: |
           cd terraform
           terraform apply \
-            -var="posthog_api_key=${{ secrets.POSTHOG_API_KEY }}" \
             -auto-approve \
             tfplan
 
           echo "✓ Terraform apply concluído"
+          echo ""
+          echo "ℹ️  Secrets created in AWS Secrets Manager:"
+          terraform output -json secrets_arns 2>/dev/null | jq '.' || echo "No secrets output available"
 
       - name: Wait for ECS service stability
         run: |

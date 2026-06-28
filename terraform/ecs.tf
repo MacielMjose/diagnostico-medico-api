@@ -1,16 +1,16 @@
-# AWS Secrets Manager - PostHog API Key
-resource "aws_secretsmanager_secret" "posthog_api_key" {
-  name                    = "${var.app_name}-posthog-api-key"
+# AWS Secrets Manager - Create secrets with naming pattern: app-name/environment/secret-name
+resource "aws_secretsmanager_secret" "app_secrets" {
+  for_each = var.secrets_to_create
+
+  name                    = "${var.app_name}/${var.environment}/${each.key}"
+  description             = each.value.description
   recovery_window_in_days = 7
 
   tags = {
-    Name = "${var.app_name}-posthog-api-key"
+    Name        = "${var.app_name}-${each.key}"
+    Environment = var.environment
+    Secret      = each.key
   }
-}
-
-resource "aws_secretsmanager_secret_version" "posthog_api_key" {
-  secret_id     = aws_secretsmanager_secret.posthog_api_key.id
-  secret_string = var.posthog_api_key
 }
 
 # CloudWatch Log Group
@@ -108,7 +108,9 @@ resource "aws_iam_role_policy" "ecs_task_execution_ecr_cloudwatch" {
         Action = [
           "secretsmanager:GetSecretValue"
         ]
-        Resource = aws_secretsmanager_secret.posthog_api_key.arn
+        Resource = [
+          for secret in aws_secretsmanager_secret.app_secrets : secret.arn
+        ]
       }
     ]
   })
@@ -177,9 +179,9 @@ resource "aws_ecs_task_definition" "app" {
       ]
 
       secrets = [
-        {
-          name      = "POSTHOG_API_KEY"
-          valueFrom = aws_secretsmanager_secret.posthog_api_key.arn
+        for secret_key, secret_config in var.secrets_to_create : {
+          name      = secret_config.container_env_name
+          valueFrom = aws_secretsmanager_secret.app_secrets[secret_key].arn
         }
       ]
 
@@ -198,10 +200,13 @@ resource "aws_ecs_task_definition" "app" {
     Name = "${var.app_name}-task-definition"
   }
 
-  depends_on = [
-    aws_cloudwatch_log_group.ecs,
-    aws_iam_role_policy.ecs_task_execution_ecr_cloudwatch
-  ]
+  depends_on = concat(
+    [
+      aws_cloudwatch_log_group.ecs,
+      aws_iam_role_policy.ecs_task_execution_ecr_cloudwatch
+    ],
+    values(aws_secretsmanager_secret.app_secrets)
+  )
 }
 
 # ECS Service

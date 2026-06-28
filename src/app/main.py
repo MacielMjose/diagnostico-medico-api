@@ -10,6 +10,7 @@ from app.domain.exceptions import (
     LLMRequestError,
     ModelNotLoadedError,
 )
+from app.infrastructure.secrets_manager import get_secret_or_env
 from app.monitoring.middleware import TimingMiddleware
 from app.monitoring.posthog import capture_event, close_posthog, init_posthog
 
@@ -17,6 +18,25 @@ from app.monitoring.posthog import capture_event, close_posthog, init_posthog
 def create_app() -> FastAPI:
     settings = Settings()
     setup_logging(settings)
+
+    # Fetch PostHog API Key from AWS Secrets Manager (or env var for local dev)
+    if settings.posthog_enabled:
+        try:
+            posthog_api_key = get_secret_or_env(
+                env_var_name="POSTHOG_API_KEY",
+                secret_path=f"{settings.app_name}/{settings.environment}/posthog_api_key",
+            )
+            settings.posthog_api_key = posthog_api_key
+        except ValueError as e:
+            import structlog
+            logger = structlog.get_logger()
+            logger.warning(
+                "posthog_api_key_not_found",
+                error=str(e),
+                message="PostHog disabled due to missing API key",
+            )
+            settings.posthog_enabled = False
+
     init_posthog(settings)
 
     app = FastAPI(

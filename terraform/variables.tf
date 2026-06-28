@@ -104,9 +104,16 @@ variable "tags" {
   }
 }
 
-variable "posthog_api_key" {
-  description = "PostHog API key for analytics"
-  type        = string
-  sensitive   = true
-  default     = ""
+variable "secrets_to_create" {
+  description = "Map of secrets to create in AWS Secrets Manager. Values must be set manually in AWS Console."
+  type = map(object({
+    description          = string
+    container_env_name   = string
+  }))
+  default = {
+    "posthog_api_key" = {
+      description        = "PostHog API Key for analytics"
+      container_env_name = "POSTHOG_API_KEY"
+    }
+  }
 }
