@@ -148,15 +148,12 @@ jobs:
           REGISTRY: ${{ steps.login-ecr.outputs.registry }}
           REPOSITORY: ${{ env.ECR_REPOSITORY }}
         run: |
-          # Build image com tags
           docker build -t $REGISTRY/$REPOSITORY:latest .
           docker build -t $REGISTRY/$REPOSITORY:${{ github.sha }} .
 
-          # Push ambas tags para ECR
           docker push $REGISTRY/$REPOSITORY:latest
           docker push $REGISTRY/$REPOSITORY:${{ github.sha }}
 
-          # Output da imagem
           echo "image=$REGISTRY/$REPOSITORY:latest" >> $GITHUB_OUTPUT
           echo "Imagem enviada para ECR"
 
@@ -170,8 +167,16 @@ jobs:
   deploy-to-ecs:
     name: Deploy to ECS
     runs-on: ubuntu-latest
-    if: github.event_name == 'workflow_dispatch' && (contains(github.event.inputs.action, 'deploy') || contains(github.event.inputs.action, 'full'))
+    # CORREÇÃO: always() permite rodar mesmo quando push-to-ecr foi skipped
+    # A condição garante que só roda na action correta E que push-to-ecr
+    # teve sucesso OU foi skipped (opção 'deploy' sem push)
     needs: [build-image, push-to-ecr]
+    if: |
+      always() &&
+      needs.build-image.result == 'success' &&
+      (needs.push-to-ecr.result == 'success' || needs.push-to-ecr.result == 'skipped') &&
+      github.event_name == 'workflow_dispatch' &&
+      (contains(github.event.inputs.action, 'deploy') || contains(github.event.inputs.action, 'full'))
 
     permissions:
       id-token: write
