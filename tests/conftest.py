@@ -30,11 +30,6 @@ def anyio_backend():
 
 
 @pytest.fixture
-def anyio_backend():
-    return "asyncio"
-
-
-@pytest.fixture
 def app():
     return create_app()
 
