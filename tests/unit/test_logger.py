@@ -1,4 +1,3 @@
-from unittest.mock import patch
 
 from app.core.logger import setup_logging
 

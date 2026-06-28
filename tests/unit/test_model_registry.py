@@ -3,14 +3,7 @@
 # 1. Modelos XGBoost forem treinados
 # 2. LLM_API_KEY estiver configurada
 # 3. Arquivos necessários estiverem disponíveis
-import joblib
-import numpy as np
-import pytest
-from sklearn.linear_model import LogisticRegression
-from sklearn.pipeline import make_pipeline
-from sklearn.preprocessing import StandardScaler
 
-from app.infrastructure.model_registry import ModelRegistry
 
 
 # def _make_dummy_artifacts():

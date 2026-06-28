@@ -3,10 +3,7 @@
 # 1. Modelos XGBoost forem treinados
 # 2. LLM_API_KEY estiver configurada
 # 3. Arquivos necessários estiverem disponíveis
-import io
 
-import pytest
-from PIL import Image
 
 
 # class TestUltrasoundEndpoint:

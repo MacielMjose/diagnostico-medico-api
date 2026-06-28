@@ -3,12 +3,8 @@
 # 1. Modelos XGBoost forem treinados
 # 2. LLM_API_KEY estiver configurada
 # 3. Arquivos necessários estiverem disponíveis
-import json
-from unittest.mock import MagicMock
 
-import pytest
 
-from app.services.llm_explainer import LLMExplainerService
 
 
 # class TestLLMExplainerService:

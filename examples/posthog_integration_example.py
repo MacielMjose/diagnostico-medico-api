@@ -4,7 +4,6 @@ Example: PostHog Integration Usage
 This script demonstrates how to use PostHog integration for analytics.
 """
 
-import time
 from datetime import datetime
 
 from app.core.config import Settings

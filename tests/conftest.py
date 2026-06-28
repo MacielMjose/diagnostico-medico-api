@@ -1,5 +1,4 @@
 import json
-from pathlib import Path
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import joblib
@@ -10,7 +9,7 @@ from sklearn.linear_model import LogisticRegression
 from sklearn.pipeline import make_pipeline
 from sklearn.preprocessing import StandardScaler
 
-from app.domain.models import PCOSPrediction, OptimizationResult, Explanation
+from app.domain.models import Explanation, OptimizationResult, PCOSPrediction
 from app.main import create_app
 
 
@@ -138,11 +137,11 @@ def mock_llm_client():
 @pytest.fixture
 def override_deps(app, mock_predictor, mock_optimizer, mock_explainer):
     from app.core.dependencies import (
-        get_predictor,
-        get_optimizer,
         get_explainer,
-        get_model_registry,
         get_llm_provider,
+        get_model_registry,
+        get_optimizer,
+        get_predictor,
     )
 
     app.dependency_overrides[get_predictor] = lambda: mock_predictor

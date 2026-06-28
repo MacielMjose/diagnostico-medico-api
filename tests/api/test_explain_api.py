@@ -3,9 +3,7 @@
 # 1. Modelos XGBoost forem treinados
 # 2. LLM_API_KEY estiver configurada
 # 3. Arquivos necessários estiverem disponíveis
-import pytest
 
-from app.core.dependencies import get_llm_provider
 
 
 # class _FakeProvider:

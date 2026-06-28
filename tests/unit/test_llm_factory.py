@@ -3,12 +3,8 @@
 # 1. Modelos XGBoost forem treinados
 # 2. LLM_API_KEY estiver configurada
 # 3. Arquivos necessários estiverem disponíveis
-from unittest.mock import patch
 
-import pytest
 
-from app.core.config import Settings
-from app.infrastructure.llm.factory import create_llm_provider
 
 
 # def test_factory_raises_for_unknown_provider():

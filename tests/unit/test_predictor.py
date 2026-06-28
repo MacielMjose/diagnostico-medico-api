@@ -3,13 +3,8 @@
 # 1. Modelos XGBoost forem treinados
 # 2. LLM_API_KEY estiver configurada
 # 3. Arquivos necessários estiverem disponíveis
-from unittest.mock import MagicMock
 
-import numpy as np
-import pytest
 
-from app.domain.exceptions import ModelNotLoadedError
-from app.services.predictor import PredictorService, _confidence_label
 
 # _TOP_FEATURES = [
 #     "Follicle No. (R)",

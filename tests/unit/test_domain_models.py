@@ -1,4 +1,4 @@
-from app.domain.models import PCOSPrediction, OptimizationResult, Explanation
+from app.domain.models import Explanation, OptimizationResult, PCOSPrediction
 
 
 class TestPCOSPrediction:
