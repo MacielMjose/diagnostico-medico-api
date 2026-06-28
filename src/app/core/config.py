@@ -26,3 +26,7 @@ class Settings(BaseSettings):
 
     log_level: str = "INFO"
     max_image_size_mb: int = 10
+
+    # PostHog analytics
+    posthog_api_key: str = ""
+    posthog_enabled: bool = False

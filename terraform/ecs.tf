@@ -1,3 +1,18 @@
+# AWS Secrets Manager - PostHog API Key
+resource "aws_secretsmanager_secret" "posthog_api_key" {
+  name                    = "${var.app_name}-posthog-api-key"
+  recovery_window_in_days = 7
+
+  tags = {
+    Name = "${var.app_name}-posthog-api-key"
+  }
+}
+
+resource "aws_secretsmanager_secret_version" "posthog_api_key" {
+  secret_id     = aws_secretsmanager_secret.posthog_api_key.id
+  secret_string = var.posthog_api_key
+}
+
 # CloudWatch Log Group
 resource "aws_cloudwatch_log_group" "ecs" {
   count             = var.enable_cloudwatch_logs ? 1 : 0
@@ -87,6 +102,13 @@ resource "aws_iam_role_policy" "ecs_task_execution_ecr_cloudwatch" {
           "logs:PutLogEvents"
         ]
         Resource = "${aws_cloudwatch_log_group.ecs[0].arn}:*"
+      },
+      {
+        Effect = "Allow"
+        Action = [
+          "secretsmanager:GetSecretValue"
+        ]
+        Resource = aws_secretsmanager_secret.posthog_api_key.arn
       }
     ]
   })
@@ -147,6 +169,17 @@ resource "aws_ecs_task_definition" "app" {
         {
           name  = "ENVIRONMENT"
           value = var.environment
+        },
+        {
+          name  = "POSTHOG_ENABLED"
+          value = "true"
+        }
+      ]
+
+      secrets = [
+        {
+          name      = "POSTHOG_API_KEY"
+          valueFrom = aws_secretsmanager_secret.posthog_api_key.arn
         }
       ]
 

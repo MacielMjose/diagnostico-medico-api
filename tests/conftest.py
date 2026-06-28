@@ -14,6 +14,16 @@ from app.domain.models import PCOSPrediction, OptimizationResult, Explanation
 from app.main import create_app
 
 
+@pytest.fixture(autouse=True)
+def mock_posthog():
+    with patch("app.monitoring.posthog.get_posthog_client", return_value=None):
+        with patch("app.monitoring.posthog.capture_event"):
+            with patch("app.monitoring.posthog.capture_request"):
+                with patch("app.monitoring.posthog.capture_prediction"):
+                    with patch("app.monitoring.posthog.capture_llm_request"):
+                        yield
+
+
 @pytest.fixture
 def anyio_backend():
     return "asyncio"

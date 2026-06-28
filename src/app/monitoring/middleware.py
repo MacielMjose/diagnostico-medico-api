@@ -4,6 +4,8 @@ import structlog
 from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.requests import Request
 
+from app.monitoring.posthog import capture_request
+
 logger = structlog.get_logger()
 
 
@@ -17,6 +19,13 @@ class TimingMiddleware(BaseHTTPMiddleware):
             "request_completed",
             method=request.method,
             path=request.url.path,
+            duration=process_time,
+            status_code=response.status_code,
+        )
+        capture_request(
+            endpoint=request.url.path,
+            method=request.method,
+            status_code=response.status_code,
             duration=process_time,
         )
         return response

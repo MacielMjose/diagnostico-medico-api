@@ -11,11 +11,13 @@ from app.domain.exceptions import (
     ModelNotLoadedError,
 )
 from app.monitoring.middleware import TimingMiddleware
+from app.monitoring.posthog import capture_event, close_posthog, init_posthog
 
 
 def create_app() -> FastAPI:
     settings = Settings()
     setup_logging(settings)
+    init_posthog(settings)
 
     app = FastAPI(
         title="PCOS Diagnosis API",
@@ -49,7 +51,17 @@ def create_app() -> FastAPI:
 
     @app.get("/health")
     async def health():
+        capture_event("health_check")
         return {"status": "ok", "version": "1.0.0"}
+
+    @app.on_event("startup")
+    async def startup():
+        capture_event("api_startup")
+
+    @app.on_event("shutdown")
+    async def shutdown():
+        capture_event("api_shutdown")
+        close_posthog()
 
     return app
 

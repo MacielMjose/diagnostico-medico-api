@@ -103,3 +103,10 @@ variable "tags" {
     Environment = "dev"
   }
 }
+
+variable "posthog_api_key" {
+  description = "PostHog API key for analytics"
+  type        = string
+  sensitive   = true
+  default     = ""
+}

@@ -26,6 +26,7 @@ dependencies = [
     "prometheus-fastapi-instrumentator>=7.0",
     "Pillow>=10.0",
     "anyio>=4.0",
+    "posthog>=3.0",
     # LLM providers
     "openai>=1.30",
     "anthropic>=0.28",

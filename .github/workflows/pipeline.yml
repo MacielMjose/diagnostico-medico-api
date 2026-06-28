@@ -30,6 +30,7 @@ env:
   ECS_CLUSTER: diagnostico-medico-api-cluster
   ECS_SERVICE: diagnostico-medico-api-service
   ECS_TASK_DEFINITION: diagnostico-medico-api
+  POSTHOG_ENABLED: "true"
 
 jobs:
 
@@ -164,7 +165,7 @@ jobs:
 
 
   # ─────────────────────────────────────────────────────────
-  # 5. DEPLOY — faz deploy para ECS (MANUAL via workflow_dispatch)
+  # 5. DEPLOY — faz deploy para ECS com Terraform (MANUAL)
   # ─────────────────────────────────────────────────────────
   deploy-to-ecs:
     name: Deploy to ECS
@@ -177,23 +178,43 @@ jobs:
       contents: read
 
     steps:
+      - name: Checkout do código
+        uses: actions/checkout@v4
+
+      - name: Configurar Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: latest
+
       - name: Configurar AWS credentials (OIDC)
         uses: aws-actions/configure-aws-credentials@v4
         with:
           role-to-assume: ${{ secrets.AWS_ROLE_TO_ASSUME }}
           aws-region: ${{ env.AWS_REGION }}
 
-      - name: Update ECS service
+      - name: Terraform Init
         run: |
-          aws ecs update-service \
-            --cluster ${{ env.ECS_CLUSTER }} \
-            --service ${{ env.ECS_SERVICE }} \
-            --force-new-deployment \
-            --region ${{ env.AWS_REGION }}
+          cd terraform
+          terraform init
 
-          echo "✓ ECS deployment triggered"
+      - name: Terraform Plan
+        run: |
+          cd terraform
+          terraform plan \
+            -var="posthog_api_key=${{ secrets.POSTHOG_API_KEY }}" \
+            -out=tfplan
 
-      - name: Wait for service stability
+      - name: Terraform Apply (Deploy)
+        run: |
+          cd terraform
+          terraform apply \
+            -var="posthog_api_key=${{ secrets.POSTHOG_API_KEY }}" \
+            -auto-approve \
+            tfplan
+
+          echo "✓ Terraform apply concluído"
+
+      - name: Wait for ECS service stability
         run: |
           aws ecs wait services-stable \
             --cluster ${{ env.ECS_CLUSTER }} \
