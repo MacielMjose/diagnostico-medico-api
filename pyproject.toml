@@ -27,7 +27,6 @@ dependencies = [
     "Pillow>=10.0",
     "anyio>=4.0",
     "posthog>=3.0",
-    # LLM providers
     "openai>=1.30",
     "anthropic>=0.28",
     "google-genai>=1.0",
