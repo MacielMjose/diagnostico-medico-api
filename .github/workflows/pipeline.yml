@@ -109,7 +109,7 @@ jobs:
           docker build -t diagnostico-medico-api:${{ github.sha }} .
           docker build -t diagnostico-medico-api:latest .
 
-      - name: ✓ Build concluído com sucesso
+      - name: Build concluído com sucesso
         run: echo "Image built: diagnostico-medico-api:${{ github.sha }}"
 
 
@@ -158,7 +158,7 @@ jobs:
 
           # Output da imagem
           echo "image=$REGISTRY/$REPOSITORY:latest" >> $GITHUB_OUTPUT
-          echo "✓ Imagem enviada para ECR"
+          echo "Imagem enviada para ECR"
 
       - name: Output da imagem
         run: echo "Built and pushed - ${{ steps.image.outputs.image }}"
@@ -209,9 +209,9 @@ jobs:
             -auto-approve \
             tfplan
 
-          echo "✓ Terraform apply concluído"
+          echo "Terraform apply concluído"
           echo ""
-          echo "ℹ️  Secrets created in AWS Secrets Manager:"
+          echo "Secrets created in AWS Secrets Manager:"
           terraform output -json secrets_arns 2>/dev/null | jq '.' || echo "No secrets output available"
 
       - name: Wait for ECS service stability
@@ -221,4 +221,4 @@ jobs:
             --services ${{ env.ECS_SERVICE }} \
             --region ${{ env.AWS_REGION }}
 
-          echo "✓ Service is stable and running latest image"
+          echo "Service is stable and running latest image"
