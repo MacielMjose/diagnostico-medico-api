@@ -63,7 +63,6 @@ extend-exclude = ["*.ipynb"]
 
 [tool.ruff.lint]
 select = ["E", "F", "I"]
+ignore = ["E501"]
 
 [tool.ruff.lint.per-file-ignores]
-# Scripts de treino/validação: linhas longas em mensagens e pipelines tabulares.
-"scripts/*.py" = ["E501"]
