@@ -171,12 +171,7 @@ jobs:
     # A condição garante que só roda na action correta E que push-to-ecr
     # teve sucesso OU foi skipped (opção 'deploy' sem push)
     needs: [build-image, push-to-ecr]
-    if: |
-      always() &&
-      needs.build-image.result == 'success' &&
-      (needs.push-to-ecr.result == 'success' || needs.push-to-ecr.result == 'skipped') &&
-      github.event_name == 'workflow_dispatch' &&
-      (contains(github.event.inputs.action, 'deploy') || contains(github.event.inputs.action, 'full'))
+    if: always() && needs.build-image.result == 'success' && (needs.push-to-ecr.result == 'success' || needs.push-to-ecr.result == 'skipped') && github.event_name == 'workflow_dispatch' && (contains(github.event.inputs.action, 'deploy') || contains(github.event.inputs.action, 'full'))
 
     permissions:
       id-token: write
