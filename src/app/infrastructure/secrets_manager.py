@@ -102,7 +102,7 @@ def get_secret_json(
             secret_name=secret_path or secret_name,
             error=str(e),
         )
-        raise ValueError(f"Secret is not valid JSON") from e
+        raise ValueError("Secret is not valid JSON") from e
 
 
 def get_secret_or_env(
