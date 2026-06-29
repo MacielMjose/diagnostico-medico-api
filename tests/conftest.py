@@ -15,7 +15,10 @@ from app.main import create_app
 
 @pytest.fixture(autouse=True)
 def mock_aws_and_posthog():
-    with patch("app.infrastructure.secrets_manager.get_secret_or_env", return_value="test_api_key"):
+    with patch(
+        "app.infrastructure.secrets_manager.get_secret_or_env",
+        return_value="test_api_key",
+    ):
         with patch("app.monitoring.posthog.get_posthog_client", return_value=None):
             with patch("app.monitoring.posthog.capture_event"):
                 with patch("app.monitoring.posthog.capture_request"):

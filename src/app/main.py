@@ -1,3 +1,4 @@
+import structlog
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
@@ -13,8 +14,6 @@ from app.domain.exceptions import (
 from app.infrastructure.secrets_manager import get_secret_or_env
 from app.monitoring.middleware import TimingMiddleware
 from app.monitoring.posthog import capture_event, close_posthog, init_posthog
-
-import structlog
 
 logger = structlog.get_logger()
 
