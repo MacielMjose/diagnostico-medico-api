@@ -11,7 +11,7 @@ def init_posthog(settings: Settings) -> Optional[Posthog]:
     global _posthog_client
     if settings.posthog_enabled and settings.posthog_api_key:
         _posthog_client = Posthog(
-            api_key=settings.posthog_api_key,
+            project_api_key=settings.posthog_api_key,
             host="https://us.posthog.com",
         )
         return _posthog_client
