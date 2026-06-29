@@ -133,8 +133,8 @@ jobs:
   deploy-to-ecs:
     name: Deploy to ECS
     runs-on: ubuntu-latest
-    needs: [build-image, push-to-ecr]
-    if: "always() && needs.build-image.result == 'success' && (needs.push-to-ecr.result == 'success' || needs.push-to-ecr.result == 'skipped') && github.event_name == 'workflow_dispatch' && (contains(github.event.inputs.action, 'deploy') || contains(github.event.inputs.action, 'full'))"
+    needs: build-image
+    if: "github.event_name == 'workflow_dispatch' && (contains(github.event.inputs.action, 'deploy') || contains(github.event.inputs.action, 'full'))"
     permissions:
       id-token: write
       contents: read
