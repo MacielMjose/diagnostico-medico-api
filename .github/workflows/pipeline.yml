@@ -103,6 +103,20 @@ jobs:
         with:
           role-to-assume: ${{ secrets.AWS_ROLE_TO_ASSUME }}
           aws-region: ${{ env.AWS_REGION }}
+      - name: Configure Terraform Cloud token
+        env:
+          TF_API_TOKEN: ${{ secrets.TF_API_TOKEN }}
+        run: |
+          mkdir -p ~/.terraform.d
+          cat > ~/.terraform.d/credentials.tfrc.json <<EOF
+          {
+            "credentials": {
+              "app.terraform.io": {
+                "token": "${TF_API_TOKEN}"
+              }
+            }
+          }
+          EOF
       - run: terraform init
         working-directory: terraform
       - run: terraform plan -out=tfplan
