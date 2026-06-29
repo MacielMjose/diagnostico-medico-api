@@ -24,9 +24,7 @@ def setup_logging(settings):
             headers={"Authorization": f"Bearer {settings.posthog_api_key}"},
         )
 
-        logger_provider.add_log_record_processor(
-            BatchLogRecordProcessor(otlp_exporter)
-        )
+        logger_provider.add_log_record_processor(BatchLogRecordProcessor(otlp_exporter))
 
         # Adiciona o handler OTel ao root logger do Python stdlib
         otel_handler = LoggingHandler(logger_provider=logger_provider)
