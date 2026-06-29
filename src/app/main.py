@@ -14,6 +14,10 @@ from app.infrastructure.secrets_manager import get_secret_or_env
 from app.monitoring.middleware import TimingMiddleware
 from app.monitoring.posthog import capture_event, close_posthog, init_posthog
 
+import structlog
+
+logger = structlog.get_logger()
+
 
 def create_app() -> FastAPI:
     settings = Settings()
@@ -27,14 +31,11 @@ def create_app() -> FastAPI:
                 secret_path=f"{settings.app_name}/{settings.environment}/posthog_api_key",
             )
             settings.posthog_api_key = posthog_api_key
-        except ValueError as e:
-            import structlog
-
-            logger = structlog.get_logger()
+        except Exception as e:
             logger.warning(
                 "posthog_api_key_not_found",
                 error=str(e),
-                message="PostHog disabled due to missing API key",
+                message="PostHog disabled due to missing API key or AWS credentials",
             )
             settings.posthog_enabled = False
 
