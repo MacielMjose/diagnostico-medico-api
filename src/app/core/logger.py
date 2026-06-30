@@ -1,10 +1,10 @@
 import logging
 
 import structlog
-from opentelemetry import logs as otel_logs
+from opentelemetry import _logs as otel_logs
 from opentelemetry.exporter.otlp.proto.http._log_exporter import OTLPLogExporter
-from opentelemetry.sdk.logs import LoggerProvider, LoggingHandler
-from opentelemetry.sdk.logs.export import BatchLogRecordProcessor
+from opentelemetry.sdk._logs import LoggerProvider, LoggingHandler
+from opentelemetry.sdk._logs.export import BatchLogRecordProcessor
 
 
 def setup_logging(settings):
