@@ -1,0 +1,61 @@
+# Example Terraform Variables
+# Copy to terraform.tfvars and customize
+
+# AWS Configuration
+aws_region = "us-east-1"
+
+# Application Configuration
+app_name    = "diagnostico-medico-api"
+environment = "prod"
+
+# Container Configuration
+container_cpu    = 256
+container_memory = 512
+container_port   = 8000
+
+# ECS Configuration
+desired_count   = 2
+min_capacity    = 2
+max_capacity    = 4
+
+# Network Configuration
+vpc_cidr                = "10.0.0.0/16"
+private_subnet_cidrs    = ["10.0.1.0/24", "10.0.2.0/24"]
+public_subnet_cidrs     = ["10.0.101.0/24", "10.0.102.0/24"]
+enable_nat_gateway      = true
+
+# Logging Configuration
+enable_cloudwatch_logs = true
+log_retention_days     = 7
+
+# Docker Configuration
+image_tag = "latest"
+
+# Secrets Configuration
+# These secrets will be created in AWS Secrets Manager with pattern:
+# {app-name}/{environment}/{secret-name}
+#
+# Values must be filled manually in AWS Console after terraform apply
+secrets_to_create = {
+  "posthog_api_key" = {
+    description        = "PostHog API Key for analytics"
+    container_env_name = "POSTHOG_API_KEY"
+  }
+  # Add more secrets here as needed:
+  # "database_password" = {
+  #   description        = "Production database password"
+  #   container_env_name = "DB_PASSWORD"
+  # }
+  # "api_token" = {
+  #   description        = "External API token"
+  #   container_env_name = "EXTERNAL_API_TOKEN"
+  # }
+}
+
+# Common Tags
+tags = {
+  Project     = "Diagnostico-Medico"
+  ManagedBy   = "Terraform"
+  Environment = "prod"
+  Owner       = "Your Team"
+}

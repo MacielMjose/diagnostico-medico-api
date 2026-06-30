@@ -1,3 +1,18 @@
+# AWS Secrets Manager - Create secrets with naming pattern: app-name/environment/secret-name
+resource "aws_secretsmanager_secret" "app_secrets" {
+  for_each = var.secrets_to_create
+
+  name                    = "${var.app_name}/${var.environment}/${each.key}"
+  description             = each.value.description
+  recovery_window_in_days = 7
+
+  tags = {
+    Name        = "${var.app_name}-${each.key}"
+    Environment = var.environment
+    Secret      = each.key
+  }
+}
+
 # CloudWatch Log Group
 resource "aws_cloudwatch_log_group" "ecs" {
   count             = var.enable_cloudwatch_logs ? 1 : 0
@@ -87,6 +102,15 @@ resource "aws_iam_role_policy" "ecs_task_execution_ecr_cloudwatch" {
           "logs:PutLogEvents"
         ]
         Resource = "${aws_cloudwatch_log_group.ecs[0].arn}:*"
+      },
+      {
+        Effect = "Allow"
+        Action = [
+          "secretsmanager:GetSecretValue"
+        ]
+        Resource = [
+          for secret in aws_secretsmanager_secret.app_secrets : secret.arn
+        ]
       }
     ]
   })
@@ -147,6 +171,17 @@ resource "aws_ecs_task_definition" "app" {
         {
           name  = "ENVIRONMENT"
           value = var.environment
+        },
+        {
+          name  = "POSTHOG_ENABLED"
+          value = "true"
+        }
+      ]
+
+      secrets = [
+        for secret_key, secret_config in var.secrets_to_create : {
+          name      = secret_config.container_env_name
+          valueFrom = aws_secretsmanager_secret.app_secrets[secret_key].arn
         }
       ]
 
@@ -167,7 +202,8 @@ resource "aws_ecs_task_definition" "app" {
 
   depends_on = [
     aws_cloudwatch_log_group.ecs,
-    aws_iam_role_policy.ecs_task_execution_ecr_cloudwatch
+    aws_iam_role_policy.ecs_task_execution_ecr_cloudwatch,
+    aws_secretsmanager_secret.app_secrets,
   ]
 }
 

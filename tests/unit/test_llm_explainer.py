@@ -1,14 +1,8 @@
-﻿# TODO: Teste comentado temporariamente enquanto as dependências não estão prontas
+# TODO: Teste comentado temporariamente enquanto as dependências não estão prontas
 # Descomente quando:
 # 1. Modelos XGBoost forem treinados
 # 2. LLM_API_KEY estiver configurada
 # 3. Arquivos necessários estiverem disponíveis
-import json
-from unittest.mock import MagicMock
-
-import pytest
-
-from app.services.llm_explainer import LLMExplainerService
 
 
 # class TestLLMExplainerService:

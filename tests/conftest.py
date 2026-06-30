@@ -1,5 +1,4 @@
 import json
-from pathlib import Path
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import joblib
@@ -10,8 +9,22 @@ from sklearn.linear_model import LogisticRegression
 from sklearn.pipeline import make_pipeline
 from sklearn.preprocessing import StandardScaler
 
-from app.domain.models import PCOSPrediction, OptimizationResult, Explanation
+from app.domain.models import Explanation, OptimizationResult, PCOSPrediction
 from app.main import create_app
+
+
+@pytest.fixture(autouse=True)
+def mock_aws_and_posthog():
+    with patch(
+        "app.infrastructure.secrets_manager.get_secret_or_env",
+        return_value="test_api_key",
+    ):
+        with patch("app.monitoring.posthog.get_posthog_client", return_value=None):
+            with patch("app.monitoring.posthog.capture_event"):
+                with patch("app.monitoring.posthog.capture_request"):
+                    with patch("app.monitoring.posthog.capture_prediction"):
+                        with patch("app.monitoring.posthog.capture_llm_request"):
+                            yield
 
 
 @pytest.fixture
@@ -122,11 +135,11 @@ def mock_llm_client():
 @pytest.fixture
 def override_deps(app, mock_predictor, mock_optimizer, mock_explainer):
     from app.core.dependencies import (
-        get_predictor,
-        get_optimizer,
         get_explainer,
-        get_model_registry,
         get_llm_provider,
+        get_model_registry,
+        get_optimizer,
+        get_predictor,
     )
 
     app.dependency_overrides[get_predictor] = lambda: mock_predictor

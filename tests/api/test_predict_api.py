@@ -5,7 +5,6 @@
 # 3. Arquivos de features forem disponibilizados
 # 4. Imagens de ultrassom estiverem disponíveis
 
-import pytest
 # from app.core.dependencies import get_llm_provider, get_model_registry
 # from app.infrastructure.model_registry import ModelRegistry
 

@@ -1,3 +1,4 @@
+import structlog
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
@@ -10,12 +11,34 @@ from app.domain.exceptions import (
     LLMRequestError,
     ModelNotLoadedError,
 )
+from app.infrastructure.secrets_manager import get_secret_or_env
 from app.monitoring.middleware import TimingMiddleware
+from app.monitoring.posthog import capture_event, close_posthog, init_posthog
+
+logger = structlog.get_logger()
 
 
 def create_app() -> FastAPI:
     settings = Settings()
     setup_logging(settings)
+
+    # Fetch PostHog API Key from AWS Secrets Manager (or env var for local dev)
+    if settings.posthog_enabled:
+        try:
+            posthog_api_key = get_secret_or_env(
+                env_var_name="POSTHOG_API_KEY",
+                secret_path=f"{settings.app_name}/{settings.environment}/posthog_api_key",
+            )
+            settings.posthog_api_key = posthog_api_key
+        except Exception as e:
+            logger.warning(
+                "posthog_api_key_not_found",
+                error=str(e),
+                message="PostHog disabled due to missing API key or AWS credentials",
+            )
+            settings.posthog_enabled = False
+
+    init_posthog(settings)
 
     app = FastAPI(
         title="PCOS Diagnosis API",
@@ -49,7 +72,17 @@ def create_app() -> FastAPI:
 
     @app.get("/health")
     async def health():
+        capture_event("health_check")
         return {"status": "ok", "version": "1.0.0"}
+
+    @app.on_event("startup")
+    async def startup():
+        capture_event("api_startup")
+
+    @app.on_event("shutdown")
+    async def shutdown():
+        capture_event("api_shutdown")
+        close_posthog()
 
     return app
 

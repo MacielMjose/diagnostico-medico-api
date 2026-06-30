@@ -57,3 +57,15 @@ output "application_url" {
   description = "URL to access the application"
   value       = "http://${aws_lb.app.dns_name}"
 }
+
+output "secrets_arns" {
+  description = "ARNs of created secrets in AWS Secrets Manager (set values manually in AWS Console)"
+  value = {
+    for secret_key, secret in aws_secretsmanager_secret.app_secrets : secret_key => {
+      arn         = secret.arn
+      name        = secret.name
+      env_var     = var.secrets_to_create[secret_key].container_env_name
+      description = var.secrets_to_create[secret_key].description
+    }
+  }
+}

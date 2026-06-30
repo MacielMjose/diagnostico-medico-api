@@ -1,4 +1,4 @@
-﻿# _VALID_PATIENT = {
+# _VALID_PATIENT = {
 #     "follicle_no_r": 12,
 #     "follicle_no_l": 10,
 #     "skin_darkening": 1,
