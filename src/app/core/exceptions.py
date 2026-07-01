@@ -1,5 +1,8 @@
+import structlog
 from fastapi import Request
 from fastapi.responses import JSONResponse
+
+logger = structlog.get_logger()
 
 
 class AppException(Exception):
@@ -9,6 +12,12 @@ class AppException(Exception):
 
 
 async def app_exception_handler(request: Request, exc: AppException):
+    logger.warning(
+        "app_exception",
+        path=request.url.path,
+        status_code=exc.status_code,
+        detail=exc.message,
+    )
     return JSONResponse(
         status_code=exc.status_code,
         content={"error": exc.message},

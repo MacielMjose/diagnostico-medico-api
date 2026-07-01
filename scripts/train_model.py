@@ -14,12 +14,15 @@ import joblib
 import kagglehub
 import pandas as pd
 import shap
+import structlog
 from sklearn.compose import ColumnTransformer
 from sklearn.impute import SimpleImputer
 from sklearn.linear_model import LogisticRegression
 from sklearn.model_selection import train_test_split
 from sklearn.pipeline import Pipeline
 from sklearn.preprocessing import StandardScaler
+
+logger = structlog.get_logger()
 
 RANDOM_STATE = 42
 N_TOP_FEATURES = 20
@@ -45,7 +48,7 @@ BINARY_COLS_REF = [
 
 
 def load_and_clean() -> pd.DataFrame:
-    print("Baixando dataset do Kaggle...")
+    logger.info("dataset_download_started")
     path = kagglehub.dataset_download(
         "prasoonkottarathil/polycystic-ovary-syndrome-pcos"
     )
@@ -53,7 +56,7 @@ def load_and_clean() -> pd.DataFrame:
         os.path.join(path, "PCOS_data_without_infertility.xlsx"),
         sheet_name="Full_new",
     )
-    print(f"Shape original: {df.shape}")
+    logger.info("dataset_loaded", original_shape=df.shape)
 
     df.drop(columns=["Unnamed: 44"], inplace=True, errors="ignore")
     df.drop(columns=["Sl. No", "Patient File No."], inplace=True, errors="ignore")
@@ -78,7 +81,7 @@ def load_and_clean() -> pd.DataFrame:
     )
 
     assert df.isnull().sum().sum() == 0, "Valores nulos remanescentes!"
-    print(f"Shape após limpeza: {df.shape}")
+    logger.info("dataset_cleaned", cleaned_shape=df.shape)
     return df
 
 
@@ -90,9 +93,7 @@ def select_top_features(df: pd.DataFrame) -> list[str]:
         .head(N_TOP_FEATURES)
         .index.tolist()
     )
-    print(f"\nTop {N_TOP_FEATURES} features selecionadas:")
-    for i, f in enumerate(top, 1):
-        print(f"  {i:2d}. {f}")
+    logger.info("top_features_selected", top_features=top)
     return top
 
 
@@ -138,7 +139,7 @@ def train(df: pd.DataFrame, top_features: list[str]) -> dict:
 
     y_proba = pipe.predict_proba(X_test)[:, 1]
     auc = roc_auc_score(y_test, y_proba)
-    print(f"\nAUC-ROC (test set): {auc:.4f}")
+    logger.info("model_trained", auc_roc_test=round(auc, 4))
 
     # SHAP — LinearExplainer com dados de treino transformados
     x_train_transformed = pipe.named_steps["preprocessor"].transform(X_train)
@@ -167,8 +168,8 @@ def main() -> None:
     artifacts = train(df, top_features)
 
     joblib.dump(artifacts, OUTPUT_PATH)
-    print(f"\nArtefatos salvos em: {OUTPUT_PATH}")
-    print("Treinamento concluído.")
+    logger.info("artifacts_saved", path=str(OUTPUT_PATH))
+    logger.info("training_completed")
 
 
 if __name__ == "__main__":

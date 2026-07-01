@@ -1,6 +1,6 @@
 import anthropic
 
-from app.infrastructure.llm.base import LLMProvider
+from app.infrastructure.llm.base import LLMProvider, LLMResponse
 
 
 class AnthropicProvider(LLMProvider):
@@ -12,7 +12,7 @@ class AnthropicProvider(LLMProvider):
     def provider_name(self) -> str:
         return f"anthropic/{self._model}"
 
-    def generate(self, system_prompt: str, user_prompt: str) -> str:
+    def generate(self, system_prompt: str, user_prompt: str) -> LLMResponse:
         message = self._client.messages.create(
             model=self._model,
             max_tokens=800,
@@ -20,4 +20,7 @@ class AnthropicProvider(LLMProvider):
             messages=[{"role": "user", "content": user_prompt}],
             temperature=0.3,
         )
-        return message.content[0].text
+        tokens = None
+        if message.usage:
+            tokens = message.usage.input_tokens + message.usage.output_tokens
+        return LLMResponse(text=message.content[0].text, tokens_used=tokens)

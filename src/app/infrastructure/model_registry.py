@@ -2,6 +2,9 @@ from functools import lru_cache
 from pathlib import Path
 
 import joblib
+import structlog
+
+logger = structlog.get_logger()
 
 
 class ModelRegistry:
@@ -19,6 +22,16 @@ class ModelRegistry:
 
     @lru_cache(maxsize=1)
     def load_artifacts(self) -> dict | None:
+        logger.info("model_loading", path=str(self.model_path))
+
         if not self.model_path.exists():
+            logger.error("model_load_failed", path=str(self.model_path), reason="file_not_found")
             return None
-        return joblib.load(self.model_path)
+
+        artifact = joblib.load(self.model_path)
+        logger.info(
+            "model_loaded",
+            path=str(self.model_path),
+            artifact_keys=list(artifact.keys()),
+        )
+        return artifact

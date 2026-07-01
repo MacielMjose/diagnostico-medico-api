@@ -1,5 +1,6 @@
 import time
 
+import structlog
 from fastapi import APIRouter, Depends
 
 from app.api.v1.predict.schemas import (
@@ -11,6 +12,8 @@ from app.core.dependencies import get_predictor
 from app.monitoring.posthog import capture_prediction
 from app.services.predictor import PredictorService
 
+logger = structlog.get_logger()
+
 router = APIRouter()
 
 
@@ -19,27 +22,46 @@ async def predict(
     input_data: PCOSInput,
     predictor: PredictorService = Depends(get_predictor),
 ):
+    logger.info("predict_request_received", features=list(input_data.model_dump().keys()))
     start = time.time()
-    result = predictor.predict(input_data.model_dump())
-    duration = time.time() - start
 
-    capture_prediction(
-        model_name="pcos_model",
-        duration=duration,
-        status="success",
-    )
+    try:
+        result = predictor.predict(input_data.model_dump())
+        duration = time.time() - start
 
-    return PCOSOutput(
-        diagnosis=result.diagnosis,
-        probability=result.probability,
-        confidence=result.confidence,
-        model_version=result.model_version,
-        top_contributing_features=[
-            FeatureContributionOutput(
-                feature=c.feature,
-                contribution=c.contribution,
-                direction=c.direction,
-            )
-            for c in result.top_contributing_features
-        ],
-    )
+        capture_prediction(
+            model_name="pcos_model",
+            duration=duration,
+            status="success",
+        )
+
+        logger.info(
+            "predict_response_sent",
+            diagnosis=result.diagnosis,
+            probability=result.probability,
+            confidence=result.confidence,
+        )
+
+        return PCOSOutput(
+            diagnosis=result.diagnosis,
+            probability=result.probability,
+            confidence=result.confidence,
+            model_version=result.model_version,
+            top_contributing_features=[
+                FeatureContributionOutput(
+                    feature=c.feature,
+                    contribution=c.contribution,
+                    direction=c.direction,
+                )
+                for c in result.top_contributing_features
+            ],
+        )
+    except Exception as e:
+        duration = time.time() - start
+        capture_prediction(
+            model_name="pcos_model",
+            duration=duration,
+            status="error",
+            error=str(e),
+        )
+        raise
