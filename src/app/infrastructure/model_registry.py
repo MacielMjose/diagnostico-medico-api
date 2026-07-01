@@ -25,7 +25,9 @@ class ModelRegistry:
         logger.info("model_loading", path=str(self.model_path))
 
         if not self.model_path.exists():
-            logger.error("model_load_failed", path=str(self.model_path), reason="file_not_found")
+            logger.error(
+                "model_load_failed", path=str(self.model_path), reason="file_not_found"
+            )
             return None
 
         artifact = joblib.load(self.model_path)

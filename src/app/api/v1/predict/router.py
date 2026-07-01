@@ -22,7 +22,9 @@ async def predict(
     input_data: PCOSInput,
     predictor: PredictorService = Depends(get_predictor),
 ):
-    logger.info("predict_request_received", features=list(input_data.model_dump().keys()))
+    logger.info(
+        "predict_request_received", features=list(input_data.model_dump().keys())
+    )
     start = time.time()
 
     try:

@@ -35,4 +35,6 @@ class OllamaProvider(LLMProvider):
         usage = data.get("usage")
         if usage:
             tokens = usage.get("total_tokens")
-        return LLMResponse(text=data["choices"][0]["message"]["content"], tokens_used=tokens)
+        return LLMResponse(
+            text=data["choices"][0]["message"]["content"], tokens_used=tokens
+        )
