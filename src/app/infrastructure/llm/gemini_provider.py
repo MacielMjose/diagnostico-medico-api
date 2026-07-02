@@ -1,7 +1,7 @@
 from google import genai
 from google.genai import types
 
-from app.infrastructure.llm.base import LLMProvider
+from app.infrastructure.llm.base import LLMProvider, LLMResponse
 
 
 class GeminiProvider(LLMProvider):
@@ -13,7 +13,7 @@ class GeminiProvider(LLMProvider):
     def provider_name(self) -> str:
         return f"gemini/{self._model}"
 
-    def generate(self, system_prompt: str, user_prompt: str) -> str:
+    def generate(self, system_prompt: str, user_prompt: str) -> LLMResponse:
         response = self._client.models.generate_content(
             model=self._model,
             contents=user_prompt,
@@ -23,4 +23,7 @@ class GeminiProvider(LLMProvider):
                 max_output_tokens=800,
             ),
         )
-        return response.text
+        tokens = None
+        if response.usage_metadata:
+            tokens = response.usage_metadata.total_token_count
+        return LLMResponse(text=response.text, tokens_used=tokens)

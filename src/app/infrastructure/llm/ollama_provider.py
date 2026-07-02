@@ -1,6 +1,6 @@
 import httpx
 
-from app.infrastructure.llm.base import LLMProvider
+from app.infrastructure.llm.base import LLMProvider, LLMResponse
 
 
 class OllamaProvider(LLMProvider):
@@ -14,7 +14,7 @@ class OllamaProvider(LLMProvider):
     def provider_name(self) -> str:
         return f"ollama/{self._model}"
 
-    def generate(self, system_prompt: str, user_prompt: str) -> str:
+    def generate(self, system_prompt: str, user_prompt: str) -> LLMResponse:
         response = httpx.post(
             f"{self._base_url}/v1/chat/completions",
             json={
@@ -30,4 +30,11 @@ class OllamaProvider(LLMProvider):
             timeout=60.0,
         )
         response.raise_for_status()
-        return response.json()["choices"][0]["message"]["content"]
+        data = response.json()
+        tokens = None
+        usage = data.get("usage")
+        if usage:
+            tokens = usage.get("total_tokens")
+        return LLMResponse(
+            text=data["choices"][0]["message"]["content"], tokens_used=tokens
+        )

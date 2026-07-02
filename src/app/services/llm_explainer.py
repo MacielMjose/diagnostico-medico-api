@@ -1,14 +1,14 @@
 import json
-import logging
 
 import anyio
+import structlog
 
 from app.domain.exceptions import LLMRequestError
 from app.domain.features import readable_feature
 from app.domain.models import Explanation
-from app.infrastructure.llm.base import LLMProvider
+from app.infrastructure.llm.base import LLMProvider, LLMResponse
 
-logger = logging.getLogger(__name__)
+logger = structlog.get_logger()
 
 _SYSTEM_PROMPT = (
     "Você é um assistente clínico especializado em endocrinologia reprodutiva "
@@ -67,17 +67,26 @@ class LLMExplainerService:
 
     async def explain(
         self, features: dict, diagnosis: int, probability: float
-    ) -> Explanation:
+    ) -> tuple[Explanation, int | None]:
+        provider_name = self.client.provider_name
+        logger.info(
+            "llm_explanation_started",
+            provider=provider_name,
+            diagnosis=diagnosis,
+            probability=probability,
+        )
+
         prompt = self._build_prompt(features, diagnosis, probability)
         try:
-            raw = await anyio.to_thread.run_sync(
+            llm_response: LLMResponse = await anyio.to_thread.run_sync(
                 self.client.generate, _SYSTEM_PROMPT, prompt
             )
         except Exception as exc:
-            logger.warning(
-                "Falha na chamada ao provedor LLM (%s): %s",
-                type(exc).__name__,
-                exc,
+            logger.error(
+                "llm_explanation_failed",
+                provider=provider_name,
+                error_type=type(exc).__name__,
+                error=str(exc),
             )
             raise LLMRequestError(
                 "Falha ao gerar explicação via LLM. Verifique a configuração do "
@@ -85,9 +94,23 @@ class LLMExplainerService:
             ) from exc
 
         try:
-            return self._parse(raw)
+            result = self._parse(llm_response.text)
+            logger.info(
+                "llm_explanation_completed",
+                provider=provider_name,
+                response_length=len(result.text),
+                risk_factors_count=len(result.risk_factors),
+                insights_count=len(result.insights),
+                tokens_used=llm_response.tokens_used,
+            )
+            return result, llm_response.tokens_used
         except (json.JSONDecodeError, KeyError, TypeError) as exc:
-            logger.warning("Resposta LLM em formato inesperado: %s", exc)
+            logger.error(
+                "llm_explanation_parse_failed",
+                provider=provider_name,
+                error_type=type(exc).__name__,
+                error=str(exc),
+            )
             raise LLMRequestError(
                 "O provedor LLM retornou uma resposta em formato inesperado."
             ) from exc

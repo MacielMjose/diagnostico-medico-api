@@ -40,7 +40,7 @@ def capture_event(
             import structlog
 
             logger = structlog.get_logger()
-            logger.error("Failed to capture PostHog event", error=str(e))
+            logger.error("Failed to capture PostHog event", error=str(e), exc_info=True)
 
 
 def capture_request(
@@ -116,4 +116,4 @@ def close_posthog() -> None:
             import structlog
 
             logger = structlog.get_logger()
-            logger.error("Failed to shutdown PostHog", error=str(e))
+            logger.error("Failed to shutdown PostHog", error=str(e), exc_info=True)
