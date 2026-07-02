@@ -1,8 +1,58 @@
+from unittest.mock import MagicMock
+
+import pytest
+
+from app.domain.exceptions import InvalidFeaturesError
+from app.services.predictor import PredictorService
+
+
+class TestPredictorValidation:
+    """Testes de validação do PredictorService — valores negativos."""
+
+    def test_predict_feature_negativa_raise_invalid_features_error(self):
+        registry = MagicMock()
+        service = PredictorService(registry)
+
+        with pytest.raises(InvalidFeaturesError) as exc:
+            service.predict({"follicle_no_r": -1, "follicle_no_l": 10})
+
+        assert "negativo" in str(exc.value).lower()
+
+    def test_predict_todas_features_validas_nao_raise(self):
+        registry = MagicMock()
+        registry.load_artifacts.return_value = None
+        service = PredictorService(registry)
+
+        with pytest.raises(Exception) as exc:
+            service.predict(
+                {
+                    "follicle_no_r": 12,
+                    "follicle_no_l": 10,
+                    "skin_darkening": 1,
+                    "hair_growth": 1,
+                    "weight_gain": 1,
+                    "cycle": 4,
+                    "fast_food": 1,
+                    "pimples": 0,
+                    "amh": 7.5,
+                    "bmi": 27.0,
+                    "cycle_length": 4,
+                    "hair_loss": 0,
+                    "age": 28,
+                    "hip": 40,
+                    "avg_f_size_l": 16.0,
+                    "marriage_status": 3.0,
+                    "endometrium": 9.0,
+                    "avg_f_size_r": 17.0,
+                    "pulse_rate": 74,
+                    "hb": 11.5,
+                }
+            )
+
+        assert not isinstance(exc.value, InvalidFeaturesError)
+
+
 # TODO: Teste comentado temporariamente enquanto as dependências não estão prontas
-# Descomente quando:
-# 1. Modelos XGBoost forem treinados
-# 2. LLM_API_KEY estiver configurada
-# 3. Arquivos necessários estiverem disponíveis
 
 
 # _TOP_FEATURES = [

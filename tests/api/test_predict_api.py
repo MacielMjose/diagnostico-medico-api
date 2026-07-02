@@ -23,41 +23,56 @@ class TestHealthEndpoint:
         assert response.json()["version"] == "1.0.0"
 
 
-# _VALID_PATIENT = {
-#     "follicle_no_r": 12,
-#     "follicle_no_l": 10,
-#     "skin_darkening": 1,
-#     "hair_growth": 1,
-#     "weight_gain": 1,
-#     "cycle": 4,
-#     "fast_food": 1,
-#     "pimples": 0,
-#     "amh": 7.5,
-#     "bmi": 27.0,
-#     "cycle_length": 4,
-#     "hair_loss": 0,
-#     "age": 28,
-#     "hip": 40,
-#     "avg_f_size_l": 16.0,
-#     "marriage_status": 3.0,
-#     "endometrium": 9.0,
-#     "avg_f_size_r": 17.0,
-#     "pulse_rate": 74,
-#     "hb": 11.5,
-# }
+_VALID_PATIENT = {
+    "follicle_no_r": 12,
+    "follicle_no_l": 10,
+    "skin_darkening": 1,
+    "hair_growth": 1,
+    "weight_gain": 1,
+    "cycle": 4,
+    "fast_food": 1,
+    "pimples": 0,
+    "amh": 7.5,
+    "bmi": 27.0,
+    "cycle_length": 4,
+    "hair_loss": 0,
+    "age": 28,
+    "hip": 40,
+    "avg_f_size_l": 16.0,
+    "marriage_status": 3.0,
+    "endometrium": 9.0,
+    "avg_f_size_r": 17.0,
+    "pulse_rate": 74,
+    "hb": 11.5,
+}
 
 
-# class TestPredictEndpoint:
-#     """Testes para o endpoint POST /api/v1/predict/."""
-#
-#     def test_predict_input_invalido_retorna_422(self, client):
-#         response = client.post("/api/v1/predict/", json={"invalido": "dados"})
-#         assert response.status_code == 422
-#
-#     def test_predict_campos_faltando_retorna_422(self, client):
-#         payload = {"age": 28, "bmi": 24.5}
-#         response = client.post("/api/v1/predict/", json=payload)
-#         assert response.status_code == 422
+class TestPredictValidation:
+    """Testes de validação do endpoint POST /api/v1/predict/."""
+
+    def test_predict_input_invalido_retorna_422(self, client):
+        response = client.post("/api/v1/predict/", json={"invalido": "dados"})
+        assert response.status_code == 422
+
+    def test_predict_campos_faltando_retorna_422(self, client):
+        payload = {"age": 28, "bmi": 24.5}
+        response = client.post("/api/v1/predict/", json=payload)
+        assert response.status_code == 422
+
+    def test_predict_follicle_no_r_negativo_retorna_422(self, client):
+        payload = {**_VALID_PATIENT, "follicle_no_r": -1}
+        response = client.post("/api/v1/predict/", json=payload)
+        assert response.status_code == 422
+
+    def test_predict_follicle_no_l_negativo_retorna_422(self, client):
+        payload = {**_VALID_PATIENT, "follicle_no_l": -5}
+        response = client.post("/api/v1/predict/", json=payload)
+        assert response.status_code == 422
+
+    def test_predict_cycle_invalido_retorna_422(self, client):
+        payload = {**_VALID_PATIENT, "cycle": 3}
+        response = client.post("/api/v1/predict/", json=payload)
+        assert response.status_code == 422
 #
 #     def test_predict_happy_path(self, client):
 #         response = client.post("/api/v1/predict/", json=_VALID_PATIENT)
@@ -92,6 +107,21 @@ class TestHealthEndpoint:
 #         data = response.json()
 #         assert data["diagnosis"] in (0, 1)
 #         assert 0.0 <= data["probability"] <= 1.0
+
+
+class TestExplainValidation:
+    """Testes de validação do endpoint POST /api/v1/explain/."""
+
+    def test_explain_feature_negativa_retorna_422(self, client, override_deps):
+        response = client.post(
+            "/api/v1/explain/",
+            json={
+                "features": {"BMI": -1},
+                "diagnosis": 1,
+                "probability": 0.87,
+            },
+        )
+        assert response.status_code == 422
 
 
 # def test_explain_endpoint_parses_llm_json(app, client):

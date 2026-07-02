@@ -1,6 +1,6 @@
 import pandas as pd
 
-from app.domain.exceptions import ModelNotLoadedError
+from app.domain.exceptions import InvalidFeaturesError, ModelNotLoadedError
 from app.domain.features import FEATURE_COLUMN_MAP
 from app.domain.models import FeatureContribution, PCOSPrediction
 from app.infrastructure.model_registry import ModelRegistry
@@ -24,6 +24,13 @@ class PredictorService:
         self.registry = registry
 
     def predict(self, features: dict) -> PCOSPrediction:
+        for key, val in features.items():
+            if val < 0:
+                raise InvalidFeaturesError(
+                    f"Feature '{key}' recebeu valor negativo ({val}). "
+                    "Todas as features devem ser não-negativas."
+                )
+
         artifacts = self.registry.load_artifacts()
         if artifacts is None:
             raise ModelNotLoadedError("Model not loaded")
