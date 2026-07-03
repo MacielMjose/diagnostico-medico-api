@@ -52,3 +52,33 @@ FEATURE_LABELS: dict[str, str] = {
 
 def readable_feature(name: str) -> str:
     return FEATURE_LABELS.get(name, name)
+
+
+class FeatureValidator:
+    """Validações reutilizáveis de features entre schema HTTP e serviços."""
+
+    BINARY_FEATURES = {
+        "skin_darkening",
+        "hair_growth",
+        "weight_gain",
+        "fast_food",
+        "pimples",
+        "hair_loss",
+    }
+
+    @staticmethod
+    def validate_no_negative(features: dict, raise_exc: type[Exception] = ValueError) -> None:
+        for key, val in features.items():
+            if val < 0:
+                raise raise_exc(
+                    f"Feature '{key}' recebeu valor negativo ({val}). "
+                    "Todas as features devem ser não-negativas."
+                )
+
+    @staticmethod
+    def validate_binary_only(features: dict, raise_exc: type[Exception] = ValueError) -> None:
+        for key, val in features.items():
+            if key in FeatureValidator.BINARY_FEATURES and val not in (0, 1):
+                raise raise_exc(
+                    f"Feature binária '{key}' deve ser 0 ou 1, recebeu {val}."
+                )

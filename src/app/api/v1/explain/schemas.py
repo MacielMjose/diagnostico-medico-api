@@ -2,6 +2,8 @@ from typing import Dict, List
 
 from pydantic import BaseModel, Field, field_validator
 
+from app.domain.features import FeatureValidator
+
 
 class ExplainInput(BaseModel):
     features: Dict[str, float]
@@ -10,12 +12,9 @@ class ExplainInput(BaseModel):
 
     @field_validator("features")
     @classmethod
-    def check_no_negative_features(cls, v: dict) -> dict:
-        for key, val in v.items():
-            if val < 0:
-                raise ValueError(
-                    f"Feature '{key}' não pode ser negativa: {val}"
-                )
+    def check_features(cls, v: dict) -> dict:
+        FeatureValidator.validate_no_negative(v)
+        FeatureValidator.validate_binary_only(v)
         return v
 
 
