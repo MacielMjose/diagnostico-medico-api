@@ -14,7 +14,7 @@ dependencies = [
     "pydantic>=2.0",
     "pydantic-settings>=2.0",
     "starlette>=0.40",
-    "scikit-learn>=1.4",
+    "scikit-learn==1.6.1",
     "xgboost>=2.0",
     "pandas>=2.2",
     "numpy>=1.26",
