@@ -32,7 +32,6 @@ class PredictorService:
 
         logger.info("prediction_started", features_count=len(features))
 
-
         artifacts = self.registry.load_artifacts()
         if artifacts is None:
             logger.error("prediction_failed", reason="model_not_loaded")
