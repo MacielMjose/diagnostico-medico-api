@@ -17,6 +17,7 @@ class PCOSInput(BaseModel):
         if v not in (2.0, 4.0):
             raise ValueError("cycle deve ser 2 (Regular) ou 4 (Irregular)")
         return v
+
     fast_food: int = Field(..., ge=0, le=1, description="Consumo de fast food (0/1)")
     pimples: int = Field(..., ge=0, le=1, description="Acne (0/1)")
     amh: float = Field(..., ge=0, description="Hormônio Antimülleriano em ng/mL")

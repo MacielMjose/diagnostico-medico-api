@@ -73,6 +73,8 @@ class TestPredictValidation:
         payload = {**_VALID_PATIENT, "cycle": 3}
         response = client.post("/api/v1/predict/", json=payload)
         assert response.status_code == 422
+
+
 #
 #     def test_predict_happy_path(self, client):
 #         response = client.post("/api/v1/predict/", json=_VALID_PATIENT)

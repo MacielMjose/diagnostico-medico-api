@@ -67,7 +67,9 @@ class FeatureValidator:
     }
 
     @staticmethod
-    def validate_no_negative(features: dict, raise_exc: type[Exception] = ValueError) -> None:
+    def validate_no_negative(
+        features: dict, raise_exc: type[Exception] = ValueError
+    ) -> None:
         for key, val in features.items():
             if val < 0:
                 raise raise_exc(
@@ -76,7 +78,9 @@ class FeatureValidator:
                 )
 
     @staticmethod
-    def validate_binary_only(features: dict, raise_exc: type[Exception] = ValueError) -> None:
+    def validate_binary_only(
+        features: dict, raise_exc: type[Exception] = ValueError
+    ) -> None:
         for key, val in features.items():
             if key in FeatureValidator.BINARY_FEATURES and val not in (0, 1):
                 raise raise_exc(
