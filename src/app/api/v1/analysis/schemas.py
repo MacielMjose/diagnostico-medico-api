@@ -33,6 +33,7 @@ class FeatureContributionOutput(BaseModel):
     contribution: float
     direction: str
 
+
 class AnalysisOutput(BaseModel):
     diagnosis: str
     probability: float
