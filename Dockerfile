@@ -1,43 +1,61 @@
-# Multi-stage build for Python FastAPI application
-FROM python:3.12-slim as builder
+# Multi-stage build for Python FastAPI application + Ollama
+FROM python:3.12-slim AS builder
 
 WORKDIR /app
 
-# Install build dependencies
 RUN apt-get update && apt-get install -y --no-install-recommends \
     gcc \
     && rm -rf /var/lib/apt/lists/*
 
-# Copy requirements and source code
 COPY pyproject.toml ./
 COPY src/ src/
 
-# Install dependencies (without -e flag for production)
 RUN pip install --no-cache-dir --user .
 
-# Final stage
+# ── Final stage ──────────────────────────────────────────────────────────────
 FROM python:3.12-slim
 
 WORKDIR /app
 
-# Install runtime dependencies only
 RUN apt-get update && apt-get install -y --no-install-recommends \
     curl \
+    ca-certificates \
+    zstd \
     && rm -rf /var/lib/apt/lists/*
 
-# Copy Python packages from builder
-COPY --from=builder /root/.local /root/.local
-ENV PATH=/root/.local/bin:$PATH
+# Instalar Ollama
+RUN curl -fsSL https://ollama.com/install.sh | sh
 
-# Copy application code from builder
+# Copiar pacotes Python do builder
+COPY --from=builder /root/.local /root/.local
+
+# Variáveis de ambiente com valores padrão
+# Sensíveis (API keys) vêm do AWS Secrets Manager em runtime
+ENV PATH=/root/.local/bin:$PATH \
+    LLM_PROVIDER=ollama \
+    OLLAMA_BASE_URL=http://localhost:11434 \
+    OLLAMA_MODEL=llama3.2 \
+    POSTHOG_ENABLED=true \
+    LOG_LEVEL=INFO \
+    ENVIRONMENT=dev \
+    APP_NAME=diagnostico-medico-api \
+    MODEL_PATH=models/pcos_model.joblib
+
+# Copiar código da aplicação
 COPY --from=builder /app/src src/
 
+# Copiar modelo ML
+COPY models/ models/
+
+# Copiar entrypoint
+COPY scripts/entrypoint.sh /entrypoint.sh
+RUN chmod +x /entrypoint.sh
+
 # Health check
-HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
+HEALTHCHECK --interval=30s --timeout=10s --start-period=60s --retries=5 \
     CMD curl -f http://localhost:8000/health || exit 1
 
-# Expose port
 EXPOSE 8000
 
-# Run the application
-CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000"]
+# Entrypoint garante que Ollama está pronto antes de subir a API
+ENTRYPOINT ["/entrypoint.sh"]
