@@ -6,6 +6,7 @@ from fastapi import APIRouter, Depends
 from app.api.v1.explain.schemas import ExplainInput, ExplainOutput
 from app.core.config import Settings
 from app.core.dependencies import get_explainer, get_settings
+from app.domain.features import validate_explain_features
 from app.monitoring.posthog import capture_llm_request
 from app.services.llm_explainer import LLMExplainerService
 
@@ -20,6 +21,8 @@ async def explain(
     explainer: LLMExplainerService = Depends(get_explainer),
     settings: Settings = Depends(get_settings),
 ):
+    validate_explain_features(input_data.features)
+
     provider_model = getattr(settings, f"{settings.llm_provider}_model", "unknown")
     logger.info(
         "explain_request_received",

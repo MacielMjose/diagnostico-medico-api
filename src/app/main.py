@@ -8,6 +8,7 @@ from app.core.config import Settings
 from app.core.logger import setup_logging
 from app.domain.exceptions import (
     InvalidFeaturesError,
+    LLMConfigurationError,
     LLMRequestError,
     ModelNotLoadedError,
 )
@@ -71,6 +72,11 @@ def create_app() -> FastAPI:
     async def llm_error_handler(request: Request, exc: LLMRequestError):
         logger.error("llm_error", path=request.url.path, detail=str(exc))
         return JSONResponse(status_code=502, content={"error": str(exc)})
+
+    @app.exception_handler(LLMConfigurationError)
+    async def llm_config_error_handler(request: Request, exc: LLMConfigurationError):
+        logger.error("llm_config_error", path=request.url.path, detail=str(exc))
+        return JSONResponse(status_code=503, content={"error": str(exc)})
 
     app.include_router(api_v1_router, prefix="/api/v1")
 

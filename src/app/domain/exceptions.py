@@ -8,3 +8,7 @@ class InvalidFeaturesError(Exception):
 
 class LLMRequestError(Exception):
     pass
+
+
+class LLMConfigurationError(Exception):
+    pass
