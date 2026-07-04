@@ -12,7 +12,7 @@ from app.domain.exceptions import (
     ModelNotLoadedError,
 )
 from app.infrastructure.secrets_manager import get_secret_or_env
-from app.monitoring.middleware import TimingMiddleware
+from app.monitoring.middleware import RequestIDMiddleware, TimingMiddleware
 from app.monitoring.posthog import capture_event, close_posthog, init_posthog
 
 logger = structlog.get_logger()
@@ -55,17 +55,21 @@ def create_app() -> FastAPI:
         allow_headers=["*"],
     )
     app.add_middleware(TimingMiddleware)
+    app.add_middleware(RequestIDMiddleware)
 
     @app.exception_handler(ModelNotLoadedError)
     async def model_not_loaded_handler(request: Request, exc: ModelNotLoadedError):
+        logger.error("model_not_loaded_error", path=request.url.path, detail=str(exc))
         return JSONResponse(status_code=503, content={"error": str(exc)})
 
     @app.exception_handler(InvalidFeaturesError)
     async def invalid_features_handler(request: Request, exc: InvalidFeaturesError):
+        logger.warning("invalid_features_error", path=request.url.path, detail=str(exc))
         return JSONResponse(status_code=400, content={"error": str(exc)})
 
     @app.exception_handler(LLMRequestError)
     async def llm_error_handler(request: Request, exc: LLMRequestError):
+        logger.error("llm_error", path=request.url.path, detail=str(exc))
         return JSONResponse(status_code=502, content={"error": str(exc)})
 
     app.include_router(api_v1_router, prefix="/api/v1")

@@ -1,9 +1,12 @@
 import pandas as pd
+import structlog
 
 from app.domain.exceptions import InvalidFeaturesError, ModelNotLoadedError
 from app.domain.features import FEATURE_COLUMN_MAP, FeatureValidator
 from app.domain.models import FeatureContribution, PCOSPrediction
 from app.infrastructure.model_registry import ModelRegistry
+
+logger = structlog.get_logger()
 
 _MODEL_VERSION = "1.0.0"
 _CONFIDENCE_HIGH = 0.80
@@ -27,8 +30,12 @@ class PredictorService:
         FeatureValidator.validate_no_negative(features, InvalidFeaturesError)
         FeatureValidator.validate_binary_only(features, InvalidFeaturesError)
 
+        logger.info("prediction_started", features_count=len(features))
+
+
         artifacts = self.registry.load_artifacts()
         if artifacts is None:
+            logger.error("prediction_failed", reason="model_not_loaded")
             raise ModelNotLoadedError("Model not loaded")
 
         pipeline = artifacts["pipeline"]
@@ -36,8 +43,6 @@ class PredictorService:
         feature_names: list[str] = artifacts["feature_names"]
         top_features: list[str] = artifacts["top_features"]
 
-        # Mapeia nomes de campos limpos → nomes originais das colunas e ordena
-        # conforme o modelo espera.
         patient_row = {FEATURE_COLUMN_MAP[k]: v for k, v in features.items()}
         X = pd.DataFrame([patient_row])[top_features]
 
@@ -58,6 +63,14 @@ class PredictorService:
         top_5 = sorted(contributions, key=lambda c: abs(c.contribution), reverse=True)[
             :5
         ]
+
+        logger.info(
+            "prediction_completed",
+            diagnosis=diagnosis,
+            probability=round(probability, 4),
+            confidence=_confidence_label(probability),
+            model_version=_MODEL_VERSION,
+        )
 
         return PCOSPrediction(
             diagnosis=diagnosis,

@@ -19,8 +19,6 @@ API de suporte diagnóstico para **Síndrome dos Ovários Policísticos (SOP/PCO
 | `GET` | `/health` | Health check |
 | `POST` | `/api/v1/predict/` | Predição com todas as features |
 | `POST` | `/api/v1/predict/top20` | Predição com top 20 features |
-| `POST` | `/api/v1/ultrasound/predict` | Classificação de imagem de ultrassom |
-| `POST` | `/api/v1/optimize/` | Otimização de hiperparâmetros via AG |
 | `POST` | `/api/v1/explain/` | Explicação do diagnóstico via LLM |
 | `GET` | `/docs` | Swagger UI |
 | `GET` | `/redoc` | ReDoc |
@@ -60,7 +58,7 @@ diagnostico-medico-api/
 │   ├── core/
 │   │   ├── config.py               # Configurações via variáveis de ambiente
 │   │   └── dependencies.py         # Injeção de dependências (predictor, LLM)
-│   ├── api/v1/                     # Rotas: predict, explain, optimize, ultrasound
+│   ├── api/v1/                     # Rotas: predict, explain, optimize
 │   ├── domain/                     # Modelos de domínio + mapeamento de features
 │   ├── services/
 │   │   ├── predictor.py            # Carregamento do modelo + predição + SHAP
@@ -261,8 +259,7 @@ Recebe o resultado da predição e gera a interpretação clínica via LLM.
 
 Retorna `502` se o provedor LLM falhar ou devolver formato inesperado.
 
-> Há ainda as rotas `POST /api/v1/optimize/` (otimização genética de
-> hiperparâmetros) e `POST /api/v1/ultrasound/predict` (upload de imagem).
+> Há ainda a rota `POST /api/v1/optimize/` para otimização genética de hiperparâmetros.
 
 ---
 

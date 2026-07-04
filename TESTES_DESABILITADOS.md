@@ -10,7 +10,6 @@ Os testes da aplicação foram **comentados temporariamente** para permitir que 
 - ❌ `tests/api/test_predict_api.py` - Requer modelos XGBoost
 - ❌ `tests/api/test_explain_api.py` - Requer LLM API key
 - ❌ `tests/api/test_optimize_api.py` - Requer genética + modelos
-- ❌ `tests/api/test_ultrasound_api.py` - Requer imagens + modelos
 
 ### Unit Tests
 - ❌ `tests/unit/test_predictor.py` - Requer modelos
@@ -108,7 +107,6 @@ Antes de fazer deploy em produção:
 - [ ] Descomentar test_predict_api.py
 - [ ] Descomentar test_explain_api.py
 - [ ] Descomentar test_optimize_api.py
-- [ ] Descomentar test_ultrasound_api.py
 - [ ] Descomentar testes unitários
 - [ ] Descomentar testes de integração
 - [ ] `pytest --cov=app` passa com >80%

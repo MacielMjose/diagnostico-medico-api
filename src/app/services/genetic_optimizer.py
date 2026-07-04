@@ -1,7 +1,12 @@
 import random
+import time
 from typing import List, Tuple
 
+import structlog
+
 from app.domain.models import OptimizationResult
+
+logger = structlog.get_logger()
 
 
 class GeneticOptimizerService:
@@ -35,15 +40,35 @@ class GeneticOptimizerService:
         mut_rate = config.get("mutation_rate", 0.05)
         cross_rate = config.get("crossover_rate", 0.8)
 
+        logger.info(
+            "optimization_started",
+            population_size=pop_size,
+            generations=generations,
+            mutation_rate=mut_rate,
+            crossover_rate=cross_rate,
+        )
+        start_time = time.time()
+
         population: List[Tuple[List[float], float]] = [
             (self._create_chromosome(), 0.0) for _ in range(pop_size)
         ]
         fitness_history = []
 
-        for _ in range(generations):
+        for gen in range(generations):
             for i in range(pop_size):
                 population[i] = (population[i][0], self._fitness(population[i][0]))
-            fitness_history.append(max(f[1] for f in population))
+
+            gen_best = max(f[1] for f in population)
+            gen_avg = sum(f[1] for f in population) / pop_size
+            fitness_history.append(gen_best)
+
+            logger.debug(
+                "ga_generation",
+                generation=gen + 1,
+                best_fitness=round(gen_best, 6),
+                avg_fitness=round(gen_avg, 6),
+                population_size=pop_size,
+            )
 
             new_pop = []
             while len(new_pop) < pop_size:
@@ -59,11 +84,21 @@ class GeneticOptimizerService:
             population = [(c, 0.0) for c in new_pop[:pop_size]]
 
         best = max(population, key=lambda x: self._fitness(x[0]))
+        best_fitness = self._fitness(best[0])
+        elapsed = time.time() - start_time
+
+        logger.info(
+            "optimization_completed",
+            best_fitness=round(best_fitness, 6),
+            total_generations=generations,
+            duration_seconds=round(elapsed, 3),
+        )
+
         return OptimizationResult(
             best_params={"param1": best[0][0]},
             fitness_history=fitness_history,
             comparison={
                 "original_auc": 0.92,
-                "optimized_auc": self._fitness(best[0]),
+                "optimized_auc": best_fitness,
             },
         )
