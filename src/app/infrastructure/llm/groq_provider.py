@@ -29,6 +29,4 @@ class GroqProvider(LLMProvider):
         tokens = None
         if response.usage:
             tokens = response.usage.total_tokens
-        return LLMResponse(
-            text=response.choices[0].message.content, tokens_used=tokens
-        )
+        return LLMResponse(text=response.choices[0].message.content, tokens_used=tokens)
