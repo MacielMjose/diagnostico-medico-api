@@ -41,6 +41,21 @@ def create_app() -> FastAPI:
 
     init_posthog(settings)
 
+    # Fetch Groq API Key from AWS Secrets Manager (or env var for local dev)
+    if settings.llm_provider.lower() == "groq":
+        try:
+            groq_api_key = get_secret_or_env(
+                env_var_name="GROQ_API_KEY",
+                secret_path=f"{settings.app_name}/{settings.environment}/groq_api_key",
+            )
+            settings.groq_api_key = groq_api_key
+        except Exception as e:
+            logger.warning(
+                "groq_api_key_not_found",
+                error=str(e),
+                message="Groq API key not found in Secrets Manager or environment",
+            )
+
     app = FastAPI(
         title="PCOS Diagnosis API",
         version="1.0.0",

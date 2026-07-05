@@ -8,7 +8,7 @@ class Settings(BaseSettings):
         env_file=".env", env_file_encoding="utf-8", extra="ignore"
     )
 
-    # LLM provider: "openai" | "anthropic" | "ollama" | "gemini"
+    # LLM provider: "openai" | "anthropic" | "ollama" | "gemini" | "groq"
     llm_provider: str = "openai"
 
     openai_api_key: str = ""
@@ -22,6 +22,9 @@ class Settings(BaseSettings):
 
     gemini_api_key: str = ""
     gemini_model: str = "gemini-2.0-flash"
+
+    groq_api_key: str = ""
+    groq_model: str = "llama-3.1-8b-instant"
 
     # Path to the serialized model artifact (dict with pipeline/explainer/...).
     model_path: str = "models/pcos_model.joblib"

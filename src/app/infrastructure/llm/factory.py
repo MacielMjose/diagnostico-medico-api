@@ -6,13 +6,14 @@ from app.infrastructure.llm.base import LLMProvider
 
 logger = structlog.get_logger()
 
-_SUPPORTED = ("openai", "anthropic", "ollama", "gemini")
+_SUPPORTED = ("openai", "anthropic", "ollama", "gemini", "groq")
 
 # Env var that must be configured for each credential-based provider.
 _REQUIRED_ENV_VAR = {
     "openai": "OPENAI_API_KEY",
     "anthropic": "ANTHROPIC_API_KEY",
     "gemini": "GEMINI_API_KEY",
+    "groq": "GROQ_API_KEY",
 }
 
 
@@ -72,6 +73,16 @@ def create_llm_provider(settings: Settings) -> LLMProvider:
         p = GeminiProvider(api_key=settings.gemini_api_key, model=settings.gemini_model)
         logger.info(
             "llm_provider_created", provider=provider, model=settings.gemini_model
+        )
+        return p
+
+    if provider == "groq":
+        from app.infrastructure.llm.groq_provider import GroqProvider
+
+        _require_api_key(provider, settings.groq_api_key)
+        p = GroqProvider(api_key=settings.groq_api_key, model=settings.groq_model)
+        logger.info(
+            "llm_provider_created", provider=provider, model=settings.groq_model
         )
         return p
 
