@@ -115,5 +115,9 @@ variable "secrets_to_create" {
       description        = "PostHog API Key for analytics"
       container_env_name = "POSTHOG_API_KEY"
     }
+    "groq_api_key" = {
+      description        = "Groq API Key for LLM inference"
+      container_env_name = "GROQ_API_KEY"
+    }
   }
 }

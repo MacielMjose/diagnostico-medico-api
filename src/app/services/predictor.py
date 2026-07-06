@@ -1,6 +1,7 @@
 import pandas as pd
 import structlog
 
+
 from app.domain.exceptions import InvalidFeaturesError, ModelNotLoadedError
 from app.domain.features import FEATURE_COLUMN_MAP, FeatureValidator
 from app.domain.models import FeatureContribution, PCOSPrediction
@@ -8,9 +9,17 @@ from app.infrastructure.model_registry import ModelRegistry
 
 logger = structlog.get_logger()
 
-_MODEL_VERSION = "1.0.0"
+_MODEL_VERSION = "2.0.0"
 _CONFIDENCE_HIGH = 0.80
 _CONFIDENCE_MED = 0.60
+
+# FEATURE_LABELS usa nomes com prefixo do ColumnTransformer antigo
+# (ex.: "num__Follicle No. (R)"). O novo modelo trabalha direto com o nome
+# bruto da coluna (ex.: "Follicle No. (R)"), então derivamos um mapa sem
+# prefixo para reaproveitar os rótulos em PT-BR já existentes.
+_RAW_FEATURE_LABELS: dict[str, str] = {
+    name.split("__", 1)[-1]: label for name, label in FEATURE_LABELS.items()
+}
 
 
 def _confidence_label(probability: float) -> str:
@@ -32,32 +41,33 @@ class PredictorService:
 
         logger.info("prediction_started", features_count=len(features))
 
-        artifacts = self.registry.load_artifacts()
-        if artifacts is None:
+        model = self.registry.load_artifacts()
+        if model is None:
             logger.error("prediction_failed", reason="model_not_loaded")
             raise ModelNotLoadedError("Model not loaded")
 
-        pipeline = artifacts["pipeline"]
-        explainer = artifacts["explainer"]
-        feature_names: list[str] = artifacts["feature_names"]
-        top_features: list[str] = artifacts["top_features"]
+        top_features: list[str] = list(model.feature_names_in_)
 
         patient_row = {FEATURE_COLUMN_MAP[k]: v for k, v in features.items()}
         X = pd.DataFrame([patient_row])[top_features]
 
-        probability = float(pipeline.predict_proba(X)[0, 1])
+        probability = float(model.predict_proba(X)[0, 1])
         diagnosis = int(probability >= 0.5)
 
-        X_transformed = pipeline.named_steps["preprocessor"].transform(X)
-        shap_values = explainer(X_transformed).values[0]
-
+        # O modelo atual é uma LogisticRegression treinada direto sobre as
+        # features brutas, sem pipeline de pré-processamento nem explainer
+        # SHAP embutido. Por ser um modelo linear (fit_intercept=False), a
+        # contribuição exata de cada feature para o log-odds da predição é
+        # coeficiente * valor — dispensa a necessidade de um SHAP explainer.
+        coefficients = model.coef_[0]
+        raw_values = X.iloc[0].to_numpy()
         contributions = [
             FeatureContribution(
-                feature=name,
-                contribution=round(float(val), 4),
-                direction="positiva" if val > 0 else "negativa",
+                feature=_RAW_FEATURE_LABELS.get(name, name),
+                contribution=round(float(coef * value), 4),
+                direction="positiva" if coef * value > 0 else "negativa",
             )
-            for name, val in zip(feature_names, shap_values)
+            for name, coef, value in zip(top_features, coefficients, raw_values)
         ]
         top_5 = sorted(contributions, key=lambda c: abs(c.contribution), reverse=True)[
             :5

@@ -27,7 +27,7 @@ class OllamaProvider(LLMProvider):
                 "max_tokens": 800,
                 "stream": False,
             },
-            timeout=60.0,
+            timeout=180.0,
         )
         response.raise_for_status()
         data = response.json()
