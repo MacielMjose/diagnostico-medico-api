@@ -1,9 +1,8 @@
 import pandas as pd
 import structlog
 
-
 from app.domain.exceptions import InvalidFeaturesError, ModelNotLoadedError
-from app.domain.features import FEATURE_COLUMN_MAP, FeatureValidator
+from app.domain.features import FEATURE_COLUMN_MAP, FEATURE_LABELS, FeatureValidator
 from app.domain.models import FeatureContribution, PCOSPrediction
 from app.infrastructure.model_registry import ModelRegistry
 
