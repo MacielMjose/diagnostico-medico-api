@@ -1,69 +1,90 @@
-# TODO: Teste comentado temporariamente enquanto as dependências não estão prontas
-# Descomente quando:
-# 1. Modelos XGBoost forem treinados
-# 2. LLM_API_KEY estiver configurada
-# 3. Arquivos necessários estiverem disponíveis
+import json
+from unittest.mock import MagicMock
+
+import pytest
+
+from app.domain.exceptions import LLMRequestError
+from app.infrastructure.llm.base import LLMResponse
+from app.services.llm_explainer import LLMExplainerService
 
 
-# class TestLLMExplainerService:
-#     """Testes para o LLMExplainerService (geraÃ§Ã£o de explicaÃ§Ãµes via LLM)."""
+class TestLLMExplainerService:
+    _FEATURES = {"BMI": 27.0, "AMH(ng/mL)": 7.5}
 
-#     @pytest.mark.asyncio
-#     async def test_explain_parses_json_response(self):
-#         mock = MagicMock()
-#         mock.generate.return_value = json.dumps(
-#             {
-#                 "explanation": "Probabilidade elevada de SOP.",
-#                 "risk_factors": ["obesidade", "hirsutismo"],
-#                 "insights": ["solicitar perfil hormonal"],
-#             }
-#         )
+    @pytest.mark.asyncio
+    async def test_explain_parses_json_response(self):
+        provider = MagicMock()
+        provider.generate.return_value = LLMResponse(
+            text=json.dumps(
+                {
+                    "explanation": "Probabilidade elevada de SOP.",
+                    "risk_factors": ["obesidade", "hirsutismo"],
+                    "insights": ["solicitar perfil hormonal"],
+                }
+            ),
+            tokens_used=100,
+        )
 
-#         service = LLMExplainerService(mock)
-#         result = await service.explain(
-#             features={"BMI": 27.0}, diagnosis=1, probability=0.87
-#         )
+        service = LLMExplainerService(provider)
+        result, tokens = await service.explain(
+            features=self._FEATURES, diagnosis=1, probability=0.87
+        )
 
-#         assert result.text == "Probabilidade elevada de SOP."
-#         assert result.risk_factors == ["obesidade", "hirsutismo"]
-#         assert result.insights == ["solicitar perfil hormonal"]
+        assert result.text == "Probabilidade elevada de SOP."
+        assert result.risk_factors == ["obesidade", "hirsutismo"]
+        assert result.insights == ["solicitar perfil hormonal"]
+        assert tokens == 100
 
-#     @pytest.mark.asyncio
-#     async def test_explain_strips_markdown_fences(self):
-#         mock = MagicMock()
-#         mock.generate.return_value = (
-#             '```json\n{"explanation": "Teste.", "risk_factors": [], "insights": []}\n```'
-#         )
+    @pytest.mark.asyncio
+    async def test_explain_strips_markdown_fences(self):
+        provider = MagicMock()
+        provider.generate.return_value = LLMResponse(
+            text='```json\n{"explanation": "Teste.", "risk_factors": [], "insights": []}\n```',
+            tokens_used=None,
+        )
 
-#         service = LLMExplainerService(mock)
-#         result = await service.explain(
-#             features={"BMI": 27.0}, diagnosis=1, probability=0.87
-#         )
+        service = LLMExplainerService(provider)
+        result, _ = await service.explain(
+            features=self._FEATURES, diagnosis=1, probability=0.87
+        )
 
-#         assert result.text == "Teste."
+        assert result.text == "Teste."
 
-#     @pytest.mark.asyncio
-#     async def test_explain_raises_on_provider_error(self):
-#         mock = MagicMock()
-#         mock.generate.side_effect = RuntimeError("API error")
+    @pytest.mark.asyncio
+    async def test_explain_raises_on_provider_error(self):
+        provider = MagicMock()
+        provider.generate.side_effect = RuntimeError("API error")
 
-#         service = LLMExplainerService(mock)
-#         with pytest.raises(Exception, match="LLM"):
-#             await service.explain(
-#                 features={"BMI": 27.0}, diagnosis=1, probability=0.87
-#             )
+        service = LLMExplainerService(provider)
+        with pytest.raises(LLMRequestError, match="Falha ao gerar explicação via LLM"):
+            await service.explain(
+                features=self._FEATURES, diagnosis=1, probability=0.87
+            )
 
-#     def test_build_prompt_contains_features_and_diagnosis(self):
-#         mock = MagicMock()
-#         service = LLMExplainerService(mock)
+    @pytest.mark.asyncio
+    async def test_explain_raises_on_bad_json(self):
+        provider = MagicMock()
+        provider.generate.return_value = LLMResponse(
+            text="isto não é JSON", tokens_used=None
+        )
 
-#         prompt = service._build_prompt(
-#             features={"idade": 30, "peso": 70},
-#             diagnosis=1,
-#             probability=0.8,
-#         )
+        service = LLMExplainerService(provider)
+        with pytest.raises(LLMRequestError, match="formato inesperado"):
+            await service.explain(
+                features=self._FEATURES, diagnosis=1, probability=0.87
+            )
 
-#         assert "idade" in prompt
-#         assert "peso" in prompt
-#         assert "POSITIVO" in prompt
-#         assert "80.0%" in prompt
+    def test_build_prompt_contains_features_and_diagnosis(self):
+        provider = MagicMock()
+        service = LLMExplainerService(provider)
+
+        prompt = service._build_prompt(
+            features={"idade": 30, "peso": 70},
+            diagnosis=1,
+            probability=0.8,
+        )
+
+        assert "idade" in prompt
+        assert "peso" in prompt
+        assert "POSITIVO" in prompt
+        assert "80.0%" in prompt

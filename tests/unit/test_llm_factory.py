@@ -1,32 +1,53 @@
-# TODO: Teste comentado temporariamente enquanto as dependências não estão prontas
-# Descomente quando:
-# 1. Modelos XGBoost forem treinados
-# 2. LLM_API_KEY estiver configurada
-# 3. Arquivos necessários estiverem disponíveis
+from unittest.mock import MagicMock, patch
+
+import pytest
+
+from app.core.config import Settings
+from app.domain.exceptions import LLMConfigurationError
+from app.infrastructure.llm.factory import _require_api_key, create_llm_provider
 
 
-# def test_factory_raises_for_unknown_provider():
-#     settings = Settings(llm_provider="gpt99")
-#     with pytest.raises(ValueError, match="nÃ£o suportado"):
-#         create_llm_provider(settings)
+class TestRequireApiKey:
+    def test_passes_with_valid_key(self):
+        _require_api_key("openai", "sk-valid")
+        _require_api_key("openai", "  sk-valid  ")
+
+    def test_raises_with_empty_key(self):
+        with pytest.raises(LLMConfigurationError, match="credencial"):
+            _require_api_key("openai", "")
+
+    def test_raises_with_whitespace_only_key(self):
+        with pytest.raises(LLMConfigurationError, match="credencial"):
+            _require_api_key("openai", "   ")
 
 
-# def test_factory_creates_gemini_provider():
-#     from app.infrastructure.llm.gemini_provider import GeminiProvider
+class TestCreateLLMProvider:
+    def test_factory_raises_for_unknown_provider(self):
+        settings = Settings(llm_provider="gpt99")
+        with pytest.raises(ValueError, match="não suportado"):
+            create_llm_provider(settings)
 
-#     settings = Settings(llm_provider="gemini", gemini_api_key="fake-key")
-#     with patch("app.infrastructure.llm.gemini_provider.genai.Client"):
-#         provider = create_llm_provider(settings)
+    def test_factory_creates_openai_provider(self):
+        with patch(
+            "app.infrastructure.llm.openai_provider.OpenAI",
+            return_value=MagicMock(),
+        ):
+            from app.infrastructure.llm.openai_provider import OpenAIProvider
 
-#     assert isinstance(provider, GeminiProvider)
-#     assert provider.provider_name.startswith("gemini/")
+            settings = Settings(llm_provider="openai", openai_api_key="sk-test")
+            provider = create_llm_provider(settings)
+            assert isinstance(provider, OpenAIProvider)
+            assert provider.provider_name.startswith("openai/")
 
+    def test_factory_creates_ollama_provider(self):
+        from app.infrastructure.llm.ollama_provider import OllamaProvider
 
-# def test_factory_creates_ollama_provider():
-#     from app.infrastructure.llm.ollama_provider import OllamaProvider
+        settings = Settings(llm_provider="ollama")
+        provider = create_llm_provider(settings)
+        assert isinstance(provider, OllamaProvider)
+        assert provider.provider_name.startswith("ollama/")
 
-#     settings = Settings(llm_provider="ollama")
-#     provider = create_llm_provider(settings)
-
-#     assert isinstance(provider, OllamaProvider)
-#     assert provider.provider_name.startswith("ollama/")
+    def test_factory_raises_if_key_missing_for_openai(self):
+        settings = Settings(llm_provider="openai", openai_api_key="")
+        with pytest.raises(LLMConfigurationError, match="credencial"):
+            create_llm_provider(settings)
