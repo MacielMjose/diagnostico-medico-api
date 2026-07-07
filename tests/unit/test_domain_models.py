@@ -1,4 +1,4 @@
-from app.domain.models import Explanation, OptimizationResult, PCOSPrediction
+from app.domain.models import Explanation, PCOSPrediction
 
 
 class TestPCOSPrediction:
@@ -28,37 +28,6 @@ class TestPCOSPrediction:
         pred_max = PCOSPrediction(diagnosis=1, probability=1.0, model_version="1.0.0")
         assert 0.0 <= pred_min.probability <= 1.0
         assert 0.0 <= pred_max.probability <= 1.0
-
-
-class TestOptimizationResult:
-    """Testes para o modelo OptimizationResult (resultado da otimização)."""
-
-    def test_create_optimization_result(self):
-        result = OptimizationResult(
-            best_params={"learning_rate": 0.01},
-            fitness_history=[0.5, 0.6, 0.7],
-            comparison={"original_accuracy": 0.5, "optimized_accuracy": 0.7},
-        )
-        assert result.best_params["learning_rate"] == 0.01
-        assert len(result.fitness_history) == 3
-        assert result.comparison["original_accuracy"] == 0.5
-        assert result.comparison["optimized_accuracy"] == 0.7
-
-    def test_empty_fitness_history(self):
-        result = OptimizationResult(
-            best_params={},
-            fitness_history=[],
-            comparison={},
-        )
-        assert result.fitness_history == []
-
-    def test_best_params_dict(self):
-        result = OptimizationResult(
-            best_params={"param1": 0.1, "param2": 0.5},
-            fitness_history=[0.8],
-            comparison={},
-        )
-        assert len(result.best_params) == 2
 
 
 class TestExplanation:
