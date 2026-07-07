@@ -1,9 +1,55 @@
 from unittest.mock import MagicMock
 
+import numpy as np
+import pandas as pd
 import pytest
+from sklearn.linear_model import LogisticRegression
 
-from app.domain.exceptions import InvalidFeaturesError
-from app.services.predictor import PredictorService
+from app.domain.exceptions import InvalidFeaturesError, ModelNotLoadedError
+from app.domain.features import FEATURE_COLUMN_MAP
+from app.domain.models import PCOSPrediction
+from app.infrastructure.model_registry import ModelRegistry
+from app.services.predictor import PredictorService, _confidence_label
+
+_PATIENT = {
+    "follicle_no_r": 12,
+    "follicle_no_l": 10,
+    "skin_darkening": 1,
+    "hair_growth": 1,
+    "weight_gain": 1,
+    "cycle": 4,
+    "fast_food": 1,
+    "pimples": 0,
+    "amh": 7.5,
+    "bmi": 27.0,
+    "cycle_length": 4,
+    "hair_loss": 0,
+    "age": 28,
+    "hip": 40,
+    "avg_f_size_l": 16.0,
+    "marriage_status": 3.0,
+    "endometrium": 9.0,
+    "avg_f_size_r": 17.0,
+    "pulse_rate": 74,
+    "hb": 11.5,
+}
+
+
+@pytest.fixture
+def trained_model(tmp_path):
+    rng = np.random.RandomState(42)
+    n = 100
+    feature_names = list(FEATURE_COLUMN_MAP.values())
+    X = pd.DataFrame(rng.randn(n, len(feature_names)), columns=feature_names)
+    y = rng.randint(0, 2, n)
+    model = LogisticRegression()
+    model.fit(X, y)
+
+    path = tmp_path / "model.joblib"
+    import joblib
+
+    joblib.dump(model, path)
+    return str(path)
 
 
 class TestPredictorValidation:
@@ -18,133 +64,61 @@ class TestPredictorValidation:
 
         assert "negativo" in str(exc.value).lower()
 
-    def test_predict_todas_features_validas_nao_raise(self):
-        registry = MagicMock()
-        registry.load_artifacts.return_value = None
+    def test_predict_todas_features_validas_retorna_prediction(self, trained_model):
+        registry = ModelRegistry(trained_model)
         service = PredictorService(registry)
 
-        with pytest.raises(Exception) as exc:
-            service.predict(
-                {
-                    "follicle_no_r": 12,
-                    "follicle_no_l": 10,
-                    "skin_darkening": 1,
-                    "hair_growth": 1,
-                    "weight_gain": 1,
-                    "cycle": 4,
-                    "fast_food": 1,
-                    "pimples": 0,
-                    "amh": 7.5,
-                    "bmi": 27.0,
-                    "cycle_length": 4,
-                    "hair_loss": 0,
-                    "age": 28,
-                    "hip": 40,
-                    "avg_f_size_l": 16.0,
-                    "marriage_status": 3.0,
-                    "endometrium": 9.0,
-                    "avg_f_size_r": 17.0,
-                    "pulse_rate": 74,
-                    "hb": 11.5,
-                }
-            )
+        result = service.predict(_PATIENT)
 
-        assert not isinstance(exc.value, InvalidFeaturesError)
+        assert isinstance(result, PCOSPrediction)
+        assert result.diagnosis in (0, 1)
 
 
-# TODO: Teste comentado temporariamente enquanto as dependências não estão prontas
+class TestConfidenceLabel:
+    def test_alta_para_prob_acima_80(self):
+        assert _confidence_label(0.95) == "Alta"
+        assert _confidence_label(0.80) == "Alta"
+
+    def test_media_para_prob_entre_60_e_80(self):
+        assert _confidence_label(0.70) == "Média"
+        assert _confidence_label(0.60) == "Média"
+
+    def test_baixa_para_prob_abaixo_60(self):
+        assert _confidence_label(0.52) == "Baixa"
+        assert _confidence_label(0.55) == "Baixa"
 
 
-# _TOP_FEATURES = [
-#     "Follicle No. (R)",
-#     "Follicle No. (L)",
-#     "Skin darkening (Y/N)",
-#     "hair growth(Y/N)",
-#     "Weight gain(Y/N)",
-#     "Cycle(R/I)",
-#     "Fast food (Y/N)",
-#     "Pimples(Y/N)",
-#     "AMH(ng/mL)",
-#     "BMI",
-#     "Cycle length(days)",
-#     "Hair loss(Y/N)",
-#     " Age (yrs)",
-#     "Hip(inch)",
-#     "Avg. F size (L) (mm)",
-#     "Marraige Status (Yrs)",
-#     "Endometrium (mm)",
-#     "Avg. F size (R) (mm)",
-#     "Pulse rate(bpm) ",
-#     "Hb(g/dl)",
-# ]
-# _FEATURE_NAMES = [f"num__f{i}" for i in range(20)]
+class TestPredictorService:
+    def test_predict_returns_pcos_prediction(self, trained_model):
+        predictor = PredictorService(ModelRegistry(trained_model))
+        result = predictor.predict(_PATIENT)
+        assert isinstance(result, PCOSPrediction)
+        assert result.diagnosis in (0, 1)
+        assert 0.0 <= result.probability <= 1.0
 
-# _PATIENT = {
-#     "follicle_no_r": 12,
-#     "follicle_no_l": 10,
-#     "skin_darkening": 1,
-#     "hair_growth": 1,
-#     "weight_gain": 1,
-#     "cycle": 4,
-#     "fast_food": 1,
-#     "pimples": 0,
-#     "amh": 7.5,
-#     "bmi": 27.0,
-#     "cycle_length": 4,
-#     "hair_loss": 0,
-#     "age": 28,
-#     "hip": 40,
-#     "avg_f_size_l": 16.0,
-#     "marriage_status": 3.0,
-#     "endometrium": 9.0,
-#     "avg_f_size_r": 17.0,
-#     "pulse_rate": 74,
-#     "hb": 11.5,
-# }
+    def test_predict_includes_confidence(self, trained_model):
+        predictor = PredictorService(ModelRegistry(trained_model))
+        result = predictor.predict(_PATIENT)
+        assert result.confidence in ("Alta", "Média", "Baixa")
 
+    def test_predict_includes_top_features(self, trained_model):
+        predictor = PredictorService(ModelRegistry(trained_model))
+        result = predictor.predict(_PATIENT)
+        assert len(result.top_contributing_features) == 5
 
-# def _fake_artifacts():
-#     pipeline = MagicMock()
-#     pipeline.predict_proba.return_value = np.array([[0.13, 0.87]])
-#     pipeline.named_steps = {"preprocessor": MagicMock()}
-#     pipeline.named_steps["preprocessor"].transform.return_value = np.zeros((1, 20))
+    def test_predict_top_features_have_direction(self, trained_model):
+        predictor = PredictorService(ModelRegistry(trained_model))
+        result = predictor.predict(_PATIENT)
+        for fc in result.top_contributing_features:
+            assert fc.direction in ("positiva", "negativa")
 
-#     explainer = MagicMock()
-#     shap_out = MagicMock()
-#     shap_out.values = np.array([np.linspace(-1, 1, 20)])
-#     explainer.return_value = shap_out
+    def test_predict_raises_when_model_not_loaded(self):
+        registry = ModelRegistry("models/nonexistent.joblib")
+        predictor = PredictorService(registry)
+        with pytest.raises(ModelNotLoadedError):
+            predictor.predict(_PATIENT)
 
-#     return {
-#         "pipeline": pipeline,
-#         "explainer": explainer,
-#         "feature_names": _FEATURE_NAMES,
-#         "top_features": _TOP_FEATURES,
-#     }
-
-
-# class TestPredictorService:
-#     """Testes para o PredictorService (prediÃ§Ã£o de diagnÃ³stico)."""
-
-#     def test_predict_returns_prediction_with_top5(self):
-#         registry = MagicMock()
-#         registry.load_artifacts.return_value = _fake_artifacts()
-
-#         result = PredictorService(registry).predict(_PATIENT)
-
-#         assert result.diagnosis == 1
-#         assert result.probability == pytest.approx(0.87)
-#         assert result.confidence == "Alta"
-#         assert len(result.top_contributing_features) == 5
-
-#     def test_predict_raises_when_model_missing(self):
-#         registry = MagicMock()
-#         registry.load_artifacts.return_value = None
-
-#         with pytest.raises(ModelNotLoadedError):
-#             PredictorService(registry).predict(_PATIENT)
-
-
-# def test_confidence_labels():
-#     assert _confidence_label(0.95) == "Alta"
-#     assert _confidence_label(0.70) == "MÃ©dia"
-#     assert _confidence_label(0.52) == "Baixa"
+    def test_predict_uses_correct_model_version(self, trained_model):
+        predictor = PredictorService(ModelRegistry(trained_model))
+        result = predictor.predict(_PATIENT)
+        assert result.model_version == "2.0.0"

@@ -19,13 +19,6 @@ class PCOSPrediction:
 
 
 @dataclass
-class OptimizationResult:
-    best_params: dict
-    fitness_history: List[float]
-    comparison: dict
-
-
-@dataclass
 class Explanation:
     text: str
     risk_factors: List[str]
