@@ -48,6 +48,7 @@ FEATURE_LABELS: dict[str, str] = {
     "bin__Hair loss(Y/N)": "Alopecia androgenética",
 }
 
+
 def readable_feature(name: str) -> str:
     return FEATURE_LABELS.get(name, name)
 
