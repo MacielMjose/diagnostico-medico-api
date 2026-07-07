@@ -1,4 +1,7 @@
-from app.core.dependencies import get_model_registry
+from unittest.mock import AsyncMock
+
+from app.core.dependencies import get_explainer, get_model_registry
+from app.domain.exceptions import LLMRequestError
 from app.infrastructure.model_registry import ModelRegistry
 
 _VALID_PATIENT = {
@@ -75,3 +78,13 @@ class TestAnalysisEndpoint:
             assert response.status_code == 503
         finally:
             app.dependency_overrides.pop(get_model_registry, None)
+
+    def test_analysis_502_quando_explain_falha(self, app, client, override_deps):
+        mock_broken = AsyncMock()
+        mock_broken.explain.side_effect = LLMRequestError("LLM error")
+        app.dependency_overrides[get_explainer] = lambda: mock_broken
+        try:
+            response = client.post("/api/v1/analysis/", json=_VALID_PATIENT)
+            assert response.status_code == 502
+        finally:
+            app.dependency_overrides.pop(get_explainer, None)

@@ -121,3 +121,61 @@ class TestExplainEndpoint:
             assert data["insights"] == ["solicitar perfil hormonal"]
         finally:
             app.dependency_overrides.pop(get_llm_provider, None)
+
+    def test_explain_probabilidade_zero(self, client, override_deps):
+        payload = _PAYLOAD_VALIDO.copy()
+        payload["diagnosis"] = 0
+        payload["probability"] = 0.0
+        response = client.post("/api/v1/explain/", json=payload)
+        assert response.status_code == 200
+
+    def test_explain_probabilidade_um(self, client, override_deps):
+        payload = _PAYLOAD_VALIDO.copy()
+        payload["diagnosis"] = 1
+        payload["probability"] = 1.0
+        response = client.post("/api/v1/explain/", json=payload)
+        assert response.status_code == 200
+
+    def test_explain_todas_as_20_features(self, client, override_deps):
+        payload = _PAYLOAD_VALIDO.copy()
+        payload["features"] = {
+            "Follicle No. (R)": 12,
+            "Follicle No. (L)": 10,
+            "Skin darkening (Y/N)": 1,
+            "hair growth(Y/N)": 1,
+            "Weight gain(Y/N)": 1,
+            "Cycle(R/I)": 4,
+            "Fast food (Y/N)": 1,
+            "Pimples(Y/N)": 0,
+            "AMH(ng/mL)": 7.5,
+            "BMI": 27.0,
+            "Cycle length(days)": 4,
+            "Hair loss(Y/N)": 0,
+            " Age (yrs)": 28,
+            "Hip(inch)": 40,
+            "Avg. F size (L) (mm)": 16.0,
+            "Marraige Status (Yrs)": 3.0,
+            "Endometrium (mm)": 9.0,
+            "Avg. F size (R) (mm)": 17.0,
+            "Pulse rate(bpm) ": 74,
+            "Hb(g/dl)": 11.5,
+        }
+        response = client.post("/api/v1/explain/", json=payload)
+        assert response.status_code == 200
+
+    def test_explain_exatamente_10_features(self, client, override_deps):
+        payload = _PAYLOAD_VALIDO.copy()
+        payload["features"] = {
+            "Follicle No. (R)": 8,
+            "Follicle No. (L)": 6,
+            "Skin darkening (Y/N)": 1,
+            "hair growth(Y/N)": 1,
+            "Weight gain(Y/N)": 0,
+            "AMH(ng/mL)": 4.2,
+            "Cycle(R/I)": 2,
+            "Fast food (Y/N)": 1,
+            "Pimples(Y/N)": 0,
+            "Hb(g/dl)": 12.5,
+        }
+        response = client.post("/api/v1/explain/", json=payload)
+        assert response.status_code == 200

@@ -51,3 +51,56 @@ class TestCreateLLMProvider:
         settings = Settings(llm_provider="openai", openai_api_key="")
         with pytest.raises(LLMConfigurationError, match="credencial"):
             create_llm_provider(settings)
+
+    def test_factory_creates_anthropic_provider(self):
+        with patch(
+            "app.infrastructure.llm.anthropic_provider.anthropic.Anthropic",
+            return_value=MagicMock(),
+        ):
+            from app.infrastructure.llm.anthropic_provider import AnthropicProvider
+
+            settings = Settings(
+                llm_provider="anthropic", anthropic_api_key="sk-ant-test"
+            )
+            provider = create_llm_provider(settings)
+            assert isinstance(provider, AnthropicProvider)
+            assert provider.provider_name.startswith("anthropic/")
+
+    def test_factory_raises_if_key_missing_for_anthropic(self):
+        settings = Settings(llm_provider="anthropic", anthropic_api_key="")
+        with pytest.raises(LLMConfigurationError, match="credencial"):
+            create_llm_provider(settings)
+
+    def test_factory_creates_gemini_provider(self):
+        with patch(
+            "app.infrastructure.llm.gemini_provider.genai.Client",
+            return_value=MagicMock(),
+        ):
+            from app.infrastructure.llm.gemini_provider import GeminiProvider
+
+            settings = Settings(llm_provider="gemini", gemini_api_key="ai-test-key")
+            provider = create_llm_provider(settings)
+            assert isinstance(provider, GeminiProvider)
+            assert provider.provider_name.startswith("gemini/")
+
+    def test_factory_raises_if_key_missing_for_gemini(self):
+        settings = Settings(llm_provider="gemini", gemini_api_key="")
+        with pytest.raises(LLMConfigurationError, match="credencial"):
+            create_llm_provider(settings)
+
+    def test_factory_creates_groq_provider(self):
+        with patch(
+            "app.infrastructure.llm.groq_provider.OpenAI",
+            return_value=MagicMock(),
+        ):
+            from app.infrastructure.llm.groq_provider import GroqProvider
+
+            settings = Settings(llm_provider="groq", groq_api_key="gsk-test")
+            provider = create_llm_provider(settings)
+            assert isinstance(provider, GroqProvider)
+            assert provider.provider_name.startswith("groq/")
+
+    def test_factory_raises_if_key_missing_for_groq(self):
+        settings = Settings(llm_provider="groq", groq_api_key="")
+        with pytest.raises(LLMConfigurationError, match="credencial"):
+            create_llm_provider(settings)
