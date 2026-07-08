@@ -9,7 +9,7 @@ Suba a API com `uvicorn app.main:app --reload`.
 
 ---
 
-## `POST /api/v1/predict/`
+## `POST /api/v1/predict/` e `POST /api/v1/analysis/`
 
 20 campos clínicos. Binários: `0` = Não, `1` = Sim. `cycle`: `2` = Regular, `4` = Irregular.
 
