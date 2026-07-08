@@ -4,7 +4,11 @@ import pytest
 
 from app.core.config import Settings
 from app.domain.exceptions import LLMConfigurationError
-from app.infrastructure.llm.factory import _require_api_key, create_llm_provider
+from app.infrastructure.llm.factory import (
+    _provider_chain,
+    _require_api_key,
+    create_llm_provider,
+)
 
 
 class TestRequireApiKey:
@@ -104,3 +108,45 @@ class TestCreateLLMProvider:
         settings = Settings(llm_provider="groq", groq_api_key="")
         with pytest.raises(LLMConfigurationError, match="credencial"):
             create_llm_provider(settings)
+
+    def test_factory_creates_harness_with_fallback_providers(self):
+        with (
+            patch(
+                "app.infrastructure.llm.openai_provider.OpenAI",
+                return_value=MagicMock(),
+            ),
+            patch(
+                "app.infrastructure.llm.groq_provider.OpenAI",
+                return_value=MagicMock(),
+            ),
+        ):
+            from app.infrastructure.llm.harness import LLMHarnessProvider
+
+            settings = Settings(
+                llm_provider="openai",
+                openai_api_key="sk-test",
+                llm_fallback_providers="groq",
+                groq_api_key="gsk-test",
+            )
+            provider = create_llm_provider(settings)
+
+            assert isinstance(provider, LLMHarnessProvider)
+            assert provider.provider_name.startswith("harness[openai/")
+            assert " -> groq/" in provider.provider_name
+
+    def test_factory_raises_if_fallback_key_missing(self):
+        settings = Settings(
+            llm_provider="ollama",
+            llm_fallback_providers="openai",
+            openai_api_key="",
+        )
+        with pytest.raises(LLMConfigurationError, match="credencial"):
+            create_llm_provider(settings)
+
+    def test_provider_chain_deduplicates_preserving_order(self):
+        settings = Settings(
+            llm_provider="openai",
+            llm_fallback_providers="groq, openai, ollama",
+        )
+
+        assert _provider_chain(settings) == ("openai", "groq", "ollama")

@@ -10,6 +10,8 @@ class Settings(BaseSettings):
 
     # LLM provider: "openai" | "anthropic" | "ollama" | "gemini" | "groq"
     llm_provider: str = "openai"
+    # Ordered, comma-separated fallback providers tried after llm_provider.
+    llm_fallback_providers: str = ""
 
     openai_api_key: str = ""
     openai_model: str = "gpt-4o-mini"

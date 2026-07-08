@@ -23,16 +23,25 @@ def _require_api_key(provider: str, api_key: str) -> None:
     env_var = _REQUIRED_ENV_VAR[provider]
     logger.error("llm_provider_missing_credentials", provider=provider, env_var=env_var)
     raise LLMConfigurationError(
-        f"O provedor de LLM '{provider}' está selecionado (LLM_PROVIDER={provider}), "
-        f"mas a credencial não foi configurada. Defina a variável de ambiente "
-        f"'{env_var}' no seu arquivo .env (ou troque LLM_PROVIDER para 'ollama', "
-        f"que não exige chave de API)."
+        f"O provedor de LLM '{provider}' está configurado, mas a credencial "
+        f"não foi informada. Defina a variável de ambiente '{env_var}' no seu "
+        f"arquivo .env."
     )
 
 
-def create_llm_provider(settings: Settings) -> LLMProvider:
-    provider = settings.llm_provider.lower()
+def _parse_provider_names(value: str) -> tuple[str, ...]:
+    return tuple(item.strip().lower() for item in value.split(",") if item.strip())
 
+
+def _provider_chain(settings: Settings) -> tuple[str, ...]:
+    providers = [
+        settings.llm_provider.lower(),
+        *_parse_provider_names(settings.llm_fallback_providers),
+    ]
+    return tuple(dict.fromkeys(providers))
+
+
+def _create_single_provider(provider: str, settings: Settings) -> LLMProvider:
     if provider == "openai":
         from app.infrastructure.llm.openai_provider import OpenAIProvider
 
@@ -91,3 +100,23 @@ def create_llm_provider(settings: Settings) -> LLMProvider:
         f"LLM provider '{provider}' não suportado. "
         f"Valores válidos: {', '.join(_SUPPORTED)}"
     )
+
+
+def create_llm_provider(settings: Settings) -> LLMProvider:
+    provider_names = _provider_chain(settings)
+    providers = [
+        _create_single_provider(provider, settings) for provider in provider_names
+    ]
+
+    if len(providers) == 1:
+        return providers[0]
+
+    from app.infrastructure.llm.harness import LLMHarnessProvider
+
+    harness = LLMHarnessProvider(providers)
+    logger.info(
+        "llm_harness_created",
+        providers=provider_names,
+        provider_count=len(providers),
+    )
+    return harness

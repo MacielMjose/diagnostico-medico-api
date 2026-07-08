@@ -130,6 +130,8 @@ Crie um arquivo `.env` na raiz do projeto:
 # Padrão em container Docker: groq
 # Padrão em desenvolvimento local: openai
 LLM_PROVIDER=groq
+# Fallbacks opcionais, em ordem, caso o provider primário falhe
+LLM_FALLBACK_PROVIDERS=openai,gemini,ollama
 
 # OpenAI
 OPENAI_API_KEY=sk-...
@@ -319,6 +321,11 @@ Retorna `502` se o provedor LLM falhar ou devolver formato inesperado.
 | `groq` | Llama 3.1 8B | Gratuito (limites) | `GROQ_API_KEY` |
 | `gemini` | Gemini 2.0 Flash | API paga | `GEMINI_API_KEY` |
 | `ollama` | LLaMA / Falcon (local) | Gratuito | Ollama rodando localmente |
+
+Para alta disponibilidade nos endpoints `/explain` e `/analysis`, configure
+`LLM_FALLBACK_PROVIDERS` com uma lista separada por vírgulas. A API tenta
+`LLM_PROVIDER` primeiro e, se a chamada ao modelo falhar, tenta cada fallback na
+ordem configurada.
 
 ---
 
