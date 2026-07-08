@@ -37,7 +37,9 @@ class TestHealthEndpoint:
         assert response.json()["version"] == "1.0.0"
 
 
-class TestPredictEndpoint:
+class TestPredictValidation:
+    """Testes de validação do endpoint POST /api/v1/predict/."""
+
     def test_predict_input_invalido_retorna_422(self, client):
         response = client.post("/api/v1/predict/", json={"invalido": "dados"})
         assert response.status_code == 422
@@ -47,11 +49,30 @@ class TestPredictEndpoint:
         response = client.post("/api/v1/predict/", json=payload)
         assert response.status_code == 422
 
+    def test_predict_follicle_no_r_negativo_retorna_422(self, client):
+        payload = {**_VALID_PATIENT, "follicle_no_r": -1}
+        response = client.post("/api/v1/predict/", json=payload)
+        assert response.status_code == 422
+
+    def test_predict_follicle_no_l_negativo_retorna_422(self, client):
+        payload = {**_VALID_PATIENT, "follicle_no_l": -5}
+        response = client.post("/api/v1/predict/", json=payload)
+        assert response.status_code == 422
+
+    def test_predict_cycle_invalido_retorna_422(self, client):
+        payload = {**_VALID_PATIENT, "cycle": 3}
+        response = client.post("/api/v1/predict/", json=payload)
+        assert response.status_code == 422
+
     def test_predict_campos_com_valores_invalidos_retorna_422(self, client):
         payload = _VALID_PATIENT.copy()
         payload["age"] = -1
         response = client.post("/api/v1/predict/", json=payload)
         assert response.status_code == 422
+
+
+class TestPredictEndpoint:
+    """Testes do endpoint predict com dependências mockadas."""
 
     def test_predict_com_mock_retorna_200(self, client, override_deps):
         response = client.post("/api/v1/predict/", json=_VALID_PATIENT)
@@ -90,3 +111,18 @@ class TestPredictEndpoint:
         response = client.post("/api/v1/predict/", json=_VALID_PATIENT)
         data = response.json()
         assert isinstance(data["top_contributing_features"], list)
+
+
+class TestExplainValidation:
+    """Testes de validação do endpoint POST /api/v1/explain/."""
+
+    def test_explain_feature_negativa_retorna_422(self, client, override_deps):
+        response = client.post(
+            "/api/v1/explain/",
+            json={
+                "features": {"BMI": -1},
+                "diagnosis": 1,
+                "probability": 0.87,
+            },
+        )
+        assert response.status_code == 422
