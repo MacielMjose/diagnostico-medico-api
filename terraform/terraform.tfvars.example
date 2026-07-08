@@ -31,6 +31,17 @@ log_retention_days     = 7
 # Docker Configuration
 image_tag = "latest"
 
+# LLM Configuration
+llm_provider           = "groq"
+llm_fallback_providers = "openai,gemini"
+
+openai_model       = "gpt-4o-mini"
+anthropic_model    = "claude-haiku-4-5-20251001"
+groq_model         = "llama-3.1-8b-instant"
+gemini_model       = "gemini-2.5-flash"
+ollama_base_url    = "http://localhost:11434"
+ollama_model       = "llama3.2"
+
 # Secrets Configuration
 # These secrets will be created in AWS Secrets Manager with pattern:
 # {app-name}/{environment}/{secret-name}
@@ -41,7 +52,24 @@ secrets_to_create = {
     description        = "PostHog API Key for analytics"
     container_env_name = "POSTHOG_API_KEY"
   }
+  "groq_api_key" = {
+    description        = "Groq API Key for LLM inference"
+    container_env_name = "GROQ_API_KEY"
+  }
+  "openai_api_key" = {
+    description        = "OpenAI API Key for LLM inference"
+    container_env_name = "OPENAI_API_KEY"
+  }
+  "gemini_api_key" = {
+    description        = "Gemini API Key for LLM inference"
+    container_env_name = "GEMINI_API_KEY"
+  }
   # Add more secrets here as needed:
+  # Required when llm_provider or llm_fallback_providers includes anthropic:
+  # "anthropic_api_key" = {
+  #   description        = "Anthropic API Key for LLM inference"
+  #   container_env_name = "ANTHROPIC_API_KEY"
+  # }
   # "database_password" = {
   #   description        = "Production database password"
   #   container_env_name = "DB_PASSWORD"

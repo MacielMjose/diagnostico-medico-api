@@ -507,6 +507,13 @@ Key outputs:
 - `application_url` — URL pública da API
 - `ecs_cluster_name`, `ecs_service_name` — Para deployments manuais
 
+Configuração LLM no Terraform:
+- `llm_provider` define o provider primário.
+- `llm_fallback_providers` define fallbacks em ordem, separados por vírgula.
+- Para cada provider com API key em `llm_provider` ou `llm_fallback_providers`,
+  inclua o secret correspondente em `secrets_to_create` e preencha o valor no
+  AWS Secrets Manager antes de subir a task ECS.
+
 ### Docker Image Management
 
 **Build and Push Manually:**
