@@ -199,10 +199,6 @@ resource "aws_ecs_task_definition" "app" {
         {
           name  = "GEMINI_MODEL"
           value = var.gemini_model
-        },
-        {
-          name  = "OLLAMA_BASE_URL"
-          value = var.ollama_base_url
         }
       ]
 
