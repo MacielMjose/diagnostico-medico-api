@@ -9,7 +9,7 @@ from app.api.v1.predict.schemas import (
     PCOSOutput,
 )
 from app.core.dependencies import get_predictor
-from app.monitoring.posthog import capture_prediction
+from app.monitoring.posthog import capture_prediction_error, capture_prediction_success
 from app.services.predictor import PredictorService
 
 logger = structlog.get_logger()
@@ -31,10 +31,10 @@ async def predict(
         result = predictor.predict(input_data.model_dump())
         duration = time.time() - start
 
-        capture_prediction(
+        capture_prediction_success(
             model_name="pcos_model",
             duration=duration,
-            status="success",
+            endpoint="/predict",
         )
 
         logger.info(
@@ -60,10 +60,10 @@ async def predict(
         )
     except Exception as e:
         duration = time.time() - start
-        capture_prediction(
+        capture_prediction_error(
             model_name="pcos_model",
             duration=duration,
-            status="error",
+            endpoint="/predict",
             error=str(e),
         )
         raise

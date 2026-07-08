@@ -7,7 +7,7 @@ from app.api.v1.explain.schemas import ExplainInput, ExplainOutput
 from app.core.config import Settings
 from app.core.dependencies import get_explainer, get_settings
 from app.domain.features import validate_explain_features
-from app.monitoring.posthog import capture_llm_request
+from app.monitoring.posthog import capture_llm_error, capture_llm_success
 from app.services.llm_explainer import LLMExplainerService
 
 logger = structlog.get_logger()
@@ -42,12 +42,11 @@ async def explain(
         )
         duration = time.time() - start
 
-        capture_llm_request(
+        capture_llm_success(
             provider=settings.llm_provider,
             model=provider_model,
             duration=duration,
             tokens_used=tokens_used,
-            status="success",
         )
 
         logger.info(
@@ -67,11 +66,10 @@ async def explain(
         )
     except Exception as e:
         duration = time.time() - start
-        capture_llm_request(
+        capture_llm_error(
             provider=settings.llm_provider,
             model=provider_model,
             duration=duration,
-            status="error",
             error=str(e),
         )
         raise
