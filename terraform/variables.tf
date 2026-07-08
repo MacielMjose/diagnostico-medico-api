@@ -95,28 +95,28 @@ variable "image_tag" {
 }
 
 variable "llm_provider" {
-  description = "Primary LLM provider. Valid values: openai, anthropic, groq, gemini, ollama."
+  description = "Primary LLM provider. Valid values: openai, anthropic, groq, gemini."
   type        = string
   default     = "groq"
 
   validation {
-    condition     = contains(["openai", "anthropic", "groq", "gemini", "ollama"], lower(var.llm_provider))
-    error_message = "llm_provider must be one of: openai, anthropic, groq, gemini, ollama."
+    condition     = contains(["openai", "anthropic", "groq", "gemini"], lower(var.llm_provider))
+    error_message = "llm_provider must be one of: openai, anthropic, groq, gemini."
   }
 }
 
 variable "llm_fallback_providers" {
-  description = "Comma-separated fallback LLM providers tried after llm_provider, for example: openai,gemini,ollama."
+  description = "Comma-separated fallback LLM providers tried after llm_provider, for example: openai,gemini."
   type        = string
-  default     = "groq,gemini,ollama"
+  default     = "groq,gemini"
 
   validation {
     condition = alltrue([
       for provider in compact([
         for provider in split(",", var.llm_fallback_providers) : trimspace(lower(provider))
-      ]) : contains(["openai", "anthropic", "groq", "gemini", "ollama"], provider)
+      ]) : contains(["openai", "anthropic", "groq", "gemini"], provider)
     ])
-    error_message = "llm_fallback_providers must contain only: openai, anthropic, groq, gemini, ollama."
+    error_message = "llm_fallback_providers must contain only: openai, anthropic, groq, gemini."
   }
 }
 
@@ -142,18 +142,6 @@ variable "gemini_model" {
   description = "Gemini model used when gemini is selected as primary or fallback provider."
   type        = string
   default     = "gemini-2.5-flash"
-}
-
-variable "ollama_base_url" {
-  description = "Base URL for Ollama when ollama is selected as primary or fallback provider."
-  type        = string
-  default     = "http://localhost:11434"
-}
-
-variable "ollama_model" {
-  description = "Ollama model used when ollama is selected as primary or fallback provider."
-  type        = string
-  default     = "llama3.2"
 }
 
 variable "tags" {

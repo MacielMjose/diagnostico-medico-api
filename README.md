@@ -31,7 +31,7 @@ POST /api/v1/predict              POST /api/v1/explain              POST /api/v1
     top contribuições)      Explicação clínica      confidence, explanation,
                             em linguagem natural    risk_factors, insights,
                                                     top_contributing_features)
-                                
+
                     LLM Providers:
                 ┌───────────────────────────────────────┐
                 │ OpenAI  Anthropic  Groq  Gemini  Ollama
@@ -40,6 +40,7 @@ POST /api/v1/predict              POST /api/v1/explain              POST /api/v1
 ```
 
 **Três fluxos disponíveis:**
+
 - **`/predict`** — Apenas diagnóstico com contribuições de features
 - **`/explain`** — Apenas explicação clínica (requer resultado de predição)
 - **`/analysis`** — Predição + Explicação em uma única chamada (mais conveniente)
@@ -90,14 +91,14 @@ diagnostico-medico-api/
 
 ### Modelo de ML
 
-| Atributo | Valor |
-|---|---|
-| Dataset | [PCOS Without Infertility — Kaggle](https://www.kaggle.com/datasets/prasoonkottarathil/polycystic-ovary-syndrome-pcos) |
-| Algoritmo | Regressão Logística (`class_weight='balanced'`) |
-| Features | Top 20 por correlação absoluta com o target |
-| Explicabilidade | SHAP values + Interpretação via LLM |
-| AUC-ROC (test set) | ~0.95 |
-| Recall (classe positiva) | ~0.92 |
+| Atributo                 | Valor                                                                                                                  |
+| ------------------------ | ---------------------------------------------------------------------------------------------------------------------- |
+| Dataset                  | [PCOS Without Infertility — Kaggle](https://www.kaggle.com/datasets/prasoonkottarathil/polycystic-ovary-syndrome-pcos) |
+| Algoritmo                | Regressão Logística (`class_weight='balanced'`)                                                                        |
+| Features                 | Top 20 por correlação absoluta com o target                                                                            |
+| Explicabilidade          | SHAP values + Interpretação via LLM                                                                                    |
+| AUC-ROC (test set)       | ~0.95                                                                                                                  |
+| Recall (classe positiva) | ~0.92                                                                                                                  |
 
 As 20 features selecionadas incluem: número de folículos, AMH, padrão do ciclo menstrual, IMC, sintomas hiperandrogênicos (hirsutismo, acantose, acne) e marcadores laboratoriais.
 
@@ -149,10 +150,6 @@ GROQ_MODEL=llama-3.1-8b-instant
 GEMINI_API_KEY=AIza...
 GEMINI_MODEL=gemini-2.0-flash
 
-# Ollama (modelos locais — não requer chave)
-OLLAMA_BASE_URL=http://localhost:11434
-OLLAMA_MODEL=llama3.2
-
 # Caminho para o artefato do modelo
 MODEL_PATH=models/pcos_model.joblib
 
@@ -182,7 +179,7 @@ Todas as rotas de negócio ficam sob o prefixo `/api/v1`.
 Health check da API.
 
 ```json
-{"status": "ok", "version": "1.0.0"}
+{ "status": "ok", "version": "1.0.0" }
 ```
 
 ### `POST /api/v1/predict/`
@@ -190,6 +187,7 @@ Health check da API.
 Recebe os 20 campos clínicos e retorna a predição com explicabilidade SHAP.
 
 **Request:**
+
 ```json
 {
   "follicle_no_r": 12,
@@ -218,6 +216,7 @@ Recebe os 20 campos clínicos e retorna a predição com explicabilidade SHAP.
 > Campos binários: `0` = Não, `1` = Sim. Campo `cycle`: `2` = Regular, `4` = Irregular.
 
 **Response:**
+
 ```json
 {
   "diagnosis": 1,
@@ -225,11 +224,31 @@ Recebe os 20 campos clínicos e retorna a predição com explicabilidade SHAP.
   "confidence": "Alta",
   "model_version": "1.0.0",
   "top_contributing_features": [
-    { "feature": "num__Follicle No. (R)", "contribution": 1.3123, "direction": "positiva" },
-    { "feature": "num__Cycle(R/I)", "contribution": 0.6091, "direction": "positiva" },
-    { "feature": "bin__hair growth(Y/N)", "contribution": 0.5850, "direction": "positiva" },
-    { "feature": "bin__Skin darkening (Y/N)", "contribution": 0.5542, "direction": "positiva" },
-    { "feature": "num__Follicle No. (L)", "contribution": 0.4782, "direction": "positiva" }
+    {
+      "feature": "num__Follicle No. (R)",
+      "contribution": 1.3123,
+      "direction": "positiva"
+    },
+    {
+      "feature": "num__Cycle(R/I)",
+      "contribution": 0.6091,
+      "direction": "positiva"
+    },
+    {
+      "feature": "bin__hair growth(Y/N)",
+      "contribution": 0.585,
+      "direction": "positiva"
+    },
+    {
+      "feature": "bin__Skin darkening (Y/N)",
+      "contribution": 0.5542,
+      "direction": "positiva"
+    },
+    {
+      "feature": "num__Follicle No. (L)",
+      "contribution": 0.4782,
+      "direction": "positiva"
+    }
   ]
 }
 ```
@@ -241,6 +260,7 @@ Retorna `503` se o artefato do modelo não estiver disponível.
 Recebe o resultado da predição e gera a interpretação clínica via LLM.
 
 **Request:**
+
 ```json
 {
   "features": { "BMI": 27.0, "AMH(ng/mL)": 7.5, "Follicle No. (R)": 12 },
@@ -252,11 +272,15 @@ Recebe o resultado da predição e gera a interpretação clínica via LLM.
 > **Validação de features:** é obrigatório enviar **pelo menos 15 das 20 features clínicas conhecidas** (nomes originais das colunas). Menos que isso retorna `400`.
 
 **Response:**
+
 ```json
 {
   "explanation": "O modelo de triagem indica resultado POSITIVO para SOP com probabilidade de 87%, sustentado principalmente pelo elevado número de folículos ovarianos e pelo padrão de ciclo irregular — achados consistentes com os critérios de Rotterdam...",
   "risk_factors": ["obesidade", "resistência insulínica", "hirsutismo"],
-  "insights": ["solicitar perfil hormonal completo", "avaliar glicemia de jejum e insulina basal"]
+  "insights": [
+    "solicitar perfil hormonal completo",
+    "avaliar glicemia de jejum e insulina basal"
+  ]
 }
 ```
 
@@ -302,10 +326,21 @@ Retorna `502` se o provedor LLM falhar ou devolver formato inesperado.
   "confidence": "Alta",
   "explanation": "O modelo de triagem indica resultado POSITIVO para SOP com probabilidade de 87%, sustentado principalmente pelo elevado número de folículos ovarianos...",
   "risk_factors": ["obesidade", "resistência insulínica", "hirsutismo"],
-  "insights": ["solicitar perfil hormonal completo", "avaliar glicemia de jejum"],
+  "insights": [
+    "solicitar perfil hormonal completo",
+    "avaliar glicemia de jejum"
+  ],
   "top_contributing_features": [
-    { "feature": "num__Follicle No. (R)", "contribution": 1.3123, "direction": "positiva" },
-    { "feature": "num__Cycle(R/I)", "contribution": 0.6091, "direction": "positiva" }
+    {
+      "feature": "num__Follicle No. (R)",
+      "contribution": 1.3123,
+      "direction": "positiva"
+    },
+    {
+      "feature": "num__Cycle(R/I)",
+      "contribution": 0.6091,
+      "direction": "positiva"
+    }
   ]
 }
 ```
@@ -314,13 +349,13 @@ Retorna `502` se o provedor LLM falhar ou devolver formato inesperado.
 
 **Integração LLM — agnóstica ao provedor**: basta alterar `LLM_PROVIDER` no `.env` para trocar entre OpenAI, Anthropic, Groq, Gemini e Ollama sem mudar nenhuma linha de código.
 
-| `LLM_PROVIDER` | Provedor | Custo | Requer |
-|---|---|---|---|
-| `openai` | GPT-4o-mini | API paga | `OPENAI_API_KEY` |
-| `anthropic` | Claude Haiku | API paga | `ANTHROPIC_API_KEY` |
-| `groq` | Llama 3.1 8B | Gratuito (limites) | `GROQ_API_KEY` |
-| `gemini` | Gemini 2.0 Flash | API paga | `GEMINI_API_KEY` |
-| `ollama` | LLaMA / Falcon (local) | Gratuito | Ollama rodando localmente |
+| `LLM_PROVIDER` | Provedor               | Custo              | Requer                    |
+| -------------- | ---------------------- | ------------------ | ------------------------- |
+| `openai`       | GPT-4o-mini            | API paga           | `OPENAI_API_KEY`          |
+| `anthropic`    | Claude Haiku           | API paga           | `ANTHROPIC_API_KEY`       |
+| `groq`         | Llama 3.1 8B           | Gratuito (limites) | `GROQ_API_KEY`            |
+| `gemini`       | Gemini 2.0 Flash       | API paga           | `GEMINI_API_KEY`          |
+| `ollama`       | LLaMA / Falcon (local) | Gratuito           | Ollama rodando localmente |
 
 Para alta disponibilidade nos endpoints `/explain` e `/analysis`, configure
 `LLM_FALLBACK_PROVIDERS` com uma lista separada por vírgulas. A API tenta
@@ -339,13 +374,13 @@ pytest --cov=app --cov-report=term-missing
 
 Os testes utilizam mocks para o provedor LLM e para o registro de modelo — não é necessário ter API keys. O teste de `/predict` usa o artefato `models/pcos_model.joblib` versionado.
 
-| Arquivo | O que testa |
-|---|---|
-| `tests/api/test_predict_api.py` | Endpoints predict/explain/analysis, validação 422, erro 503/502 |
-| `tests/api/test_analysis_api.py` | Endpoint analysis (predict + explain combinado) |
-| `tests/unit/test_predictor.py` | Lógica de predição, SHAP values, confiança |
-| `tests/unit/test_explainer.py` | Construção do prompt, parsing do JSON |
-| `tests/unit/test_llm_factory.py` | Seleção de provider (openai, anthropic, groq, gemini, ollama) |
+| Arquivo                          | O que testa                                                     |
+| -------------------------------- | --------------------------------------------------------------- |
+| `tests/api/test_predict_api.py`  | Endpoints predict/explain/analysis, validação 422, erro 503/502 |
+| `tests/api/test_analysis_api.py` | Endpoint analysis (predict + explain combinado)                 |
+| `tests/unit/test_predictor.py`   | Lógica de predição, SHAP values, confiança                      |
+| `tests/unit/test_explainer.py`   | Construção do prompt, parsing do JSON                           |
+| `tests/unit/test_llm_factory.py` | Seleção de provider (openai, anthropic, groq, gemini, ollama)   |
 
 ### Linting
 
@@ -394,28 +429,30 @@ O pipeline `.github/workflows/pipeline.yml` roda automaticamente em todo push/PR
 
 ### Stages Automáticos (todo push)
 
-| Stage | Trigger | O que faz |
-|---|---|---|
-| **Lint** | todo push | Ruff: verifica estilo e erros |
-| **Test** | após lint | pytest com relatório de cobertura |
+| Stage           | Trigger   | O que faz                                |
+| --------------- | --------- | ---------------------------------------- |
+| **Lint**        | todo push | Ruff: verifica estilo e erros            |
+| **Test**        | após lint | pytest com relatório de cobertura        |
 | **Build Image** | após test | Build da imagem Docker (local, sem push) |
 
 ### Stages Manuais (workflow_dispatch)
 
-| Stage | Trigger | O que faz |
-|---|---|---|
-| **Push ECR** | manual via GitHub UI | Build + Tag + Push para AWS ECR |
+| Stage          | Trigger              | O que faz                          |
+| -------------- | -------------------- | ---------------------------------- |
+| **Push ECR**   | manual via GitHub UI | Build + Tag + Push para AWS ECR    |
 | **Deploy ECS** | manual via GitHub UI | Update ECS service com nova imagem |
 
 ### Fluxo de Trabalho
 
 **Desenvolvimento Normal:**
+
 ```bash
 git push origin feature-branch
 # ✅ Automático: lint + test + build
 ```
 
 **Pronto para Deploy:**
+
 1. GitHub Actions → CI/CD Pipeline → **Run workflow**
 2. Branch: `main`
 3. Action: `push` (ECR only) ou `full` (ECR + ECS)
@@ -503,11 +540,13 @@ terraform output
 ```
 
 Key outputs:
+
 - `ecr_repository_url` — URL para fazer push de imagens
 - `application_url` — URL pública da API
 - `ecs_cluster_name`, `ecs_service_name` — Para deployments manuais
 
 Configuração LLM no Terraform:
+
 - `llm_provider` define o provider primário.
 - `llm_fallback_providers` define fallbacks em ordem, separados por vírgula.
 - Para cada provider com API key em `llm_provider` ou `llm_fallback_providers`,
@@ -517,6 +556,7 @@ Configuração LLM no Terraform:
 ### Docker Image Management
 
 **Build and Push Manually:**
+
 ```bash
 # Get ECR login
 aws ecr get-login-password --region us-east-1 | \
@@ -534,6 +574,7 @@ docker push <account-id>.dkr.ecr.us-east-1.amazonaws.com/diagnostico-medico-api:
 ```
 
 **Test Image Locally:**
+
 ```bash
 docker build -t diagnostico-medico-api:latest .
 docker run -p 8000:8000 diagnostico-medico-api:latest
@@ -566,23 +607,27 @@ A service escala automaticamente baseada em três métricas:
 3. **ALB Request Count**: Target 1000 requests/target/minute
 
 Modificar em `terraform/autoscaling.tf`:
+
 ```bash
 cd terraform
 terraform apply
 ```
 
 Scaling limits:
+
 - **Dev**: 1-2 tasks
 - **Prod**: 3-10 tasks
 
 ### Monitoramento e Logs
 
 **View Logs:**
+
 ```bash
 aws logs tail /ecs/diagnostico-medico-api --follow
 ```
 
 **Monitor ECS Service:**
+
 ```bash
 aws ecs describe-services \
   --cluster diagnostico-medico-api-cluster \
@@ -590,6 +635,7 @@ aws ecs describe-services \
 ```
 
 **CloudWatch Metrics:**
+
 - `ECS:ServiceCount` — Number of running tasks
 - `ALB:RequestCount` — Total requests to API
 - `ALB:TargetResponseTime` — Response time
@@ -625,6 +671,7 @@ terraform destroy
 ### Troubleshooting
 
 **Tasks not starting:**
+
 ```bash
 aws ecs describe-task-definition --task-definition diagnostico-medico-api
 aws ecs describe-services \
@@ -634,11 +681,13 @@ aws ecs describe-services \
 ```
 
 **Image not found in ECR:**
+
 ```bash
 aws ecr describe-images --repository-name diagnostico-medico-api --region us-east-1
 ```
 
 **Application not responding:**
+
 ```bash
 aws elbv2 describe-target-health --target-group-arn arn:aws:elasticloadbalancing:...
 aws ec2 describe-security-groups --filters "Name=group-name,Values=diagnostico-medico-api*"
@@ -651,6 +700,7 @@ aws ec2 describe-security-groups --filters "Name=group-name,Values=diagnostico-m
 ### CloudWatch (Infraestrutura)
 
 AWS CloudWatch monitora métricas da infraestrutura:
+
 - CPU, memória, disk usage dos containers
 - Network I/O
 - ECS task count e health
@@ -662,6 +712,7 @@ Acesse via AWS Console → CloudWatch → Logs/Metrics.
 PostHog captura eventos da aplicação:
 
 **Setup:**
+
 ```env
 POSTHOG_ENABLED=true
 POSTHOG_API_KEY=seu_api_key
@@ -669,38 +720,39 @@ POSTHOG_API_KEY=seu_api_key
 
 **Eventos Capturados:**
 
-| Evento | Properties |
-|--------|-----------|
-| `api_request` | endpoint, method, status_code, duration_ms |
-| `model_prediction` | model_name, duration_ms, status, error |
-| `llm_request` | provider, model, duration_ms, tokens_used, status, error |
-| `health_check` | timestamp |
+| Evento             | Properties                                               |
+| ------------------ | -------------------------------------------------------- |
+| `api_request`      | endpoint, method, status_code, duration_ms               |
+| `model_prediction` | model_name, duration_ms, status, error                   |
+| `llm_request`      | provider, model, duration_ms, tokens_used, status, error |
+| `health_check`     | timestamp                                                |
 
 **Criar Dashboards:**
+
 1. PostHog → Insights → New Insight
 2. Selecionar evento (ex: `api_request`)
 3. Agrupar/filtrar conforme necessário
 
 **Exemplos de Análises:**
 
-| Análise | Evento | Métrica |
-|---------|--------|---------|
-| Taxa de sucesso de previsões | `model_prediction` | Count (status=success) |
-| Performance média | `api_request` | Average duration_ms |
-| Distribuição de providers LLM | `llm_request` | Count grouped by provider |
-| Erros por endpoint | `api_request` | Count filtered by status >= 400 |
+| Análise                       | Evento             | Métrica                         |
+| ----------------------------- | ------------------ | ------------------------------- |
+| Taxa de sucesso de previsões  | `model_prediction` | Count (status=success)          |
+| Performance média             | `api_request`      | Average duration_ms             |
+| Distribuição de providers LLM | `llm_request`      | Count grouped by provider       |
+| Erros por endpoint            | `api_request`      | Count filtered by status >= 400 |
 
 ### Integração CloudWatch + PostHog
 
-| Métrica | CloudWatch | PostHog |
-|---------|-----------|---------|
-| CPU/Memória | ✅ | — |
-| Network I/O | ✅ | — |
-| HTTP Requests | — | ✅ |
-| Response Time | — | ✅ |
-| Error Rate | — | ✅ |
-| Model Performance | — | ✅ |
-| LLM Usage | — | ✅ |
+| Métrica           | CloudWatch | PostHog |
+| ----------------- | ---------- | ------- |
+| CPU/Memória       | ✅         | —       |
+| Network I/O       | ✅         | —       |
+| HTTP Requests     | —          | ✅      |
+| Response Time     | —          | ✅      |
+| Error Rate        | —          | ✅      |
+| Model Performance | —          | ✅      |
+| LLM Usage         | —          | ✅      |
 
 ---
 
@@ -709,7 +761,8 @@ POSTHOG_API_KEY=seu_api_key
 ### Geral
 
 **P: Como escolher entre os provedores LLM?**
-A: 
+A:
+
 - **Groq** (recomendado): Rápido, gratuito com limites, ideal para produção
 - **OpenAI**: Melhor qualidade, custo mais alto
 - **Anthropic**: Ótima alternativa confiável, custo moderado
@@ -719,7 +772,8 @@ A:
 Basta mudar `LLM_PROVIDER` no `.env`.
 
 **P: Qual é o padrão se não configurar LLM_PROVIDER?**
-A: 
+A:
+
 - **Em código/desenvolvimento local**: `openai` (mas requer `OPENAI_API_KEY`)
 - **Em container Docker**: `groq` (requer `GROQ_API_KEY`)
 
@@ -727,6 +781,7 @@ Para evitar erros, sempre configure `LLM_PROVIDER` e a chave correspondente no `
 
 **P: Qual é a diferença entre `/predict`, `/explain` e `/analysis`?**
 A:
+
 - **`/predict`**: Retorna apenas diagnóstico + contribuições de features
 - **`/explain`**: Retorna apenas explicação clínica (requer resultado de `/predict`)
 - **`/analysis`**: Retorna diagnóstico + explicação em uma única chamada (mais conveniente)

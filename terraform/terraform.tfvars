@@ -20,8 +20,6 @@ openai_model       = "gpt-4o-mini"
 anthropic_model    = "claude-haiku-4-5-20251001"
 groq_model         = "llama-3.1-8b-instant"
 gemini_model       = "gemini-2.5-flash"
-ollama_base_url    = "http://localhost:11434"
-ollama_model       = "llama3.2"
 
 vpc_cidr             = "10.0.0.0/16"
 public_subnet_cidrs  = ["10.0.101.0/24", "10.0.102.0/24"]

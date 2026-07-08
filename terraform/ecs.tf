@@ -203,10 +203,6 @@ resource "aws_ecs_task_definition" "app" {
         {
           name  = "OLLAMA_BASE_URL"
           value = var.ollama_base_url
-        },
-        {
-          name  = "OLLAMA_MODEL"
-          value = var.ollama_model
         }
       ]
 
