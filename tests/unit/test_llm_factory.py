@@ -43,7 +43,6 @@ class TestCreateLLMProvider:
             assert isinstance(provider, OpenAIProvider)
             assert provider.provider_name.startswith("openai/")
 
-
     def test_factory_raises_if_key_missing_for_openai(self):
         settings = Settings(llm_provider="openai", openai_api_key="")
         with pytest.raises(LLMConfigurationError, match="credencial"):
