@@ -43,13 +43,6 @@ class TestCreateLLMProvider:
             assert isinstance(provider, OpenAIProvider)
             assert provider.provider_name.startswith("openai/")
 
-    def test_factory_creates_ollama_provider(self):
-        from app.infrastructure.llm.ollama_provider import OllamaProvider
-
-        settings = Settings(llm_provider="ollama")
-        provider = create_llm_provider(settings)
-        assert isinstance(provider, OllamaProvider)
-        assert provider.provider_name.startswith("ollama/")
 
     def test_factory_raises_if_key_missing_for_openai(self):
         settings = Settings(llm_provider="openai", openai_api_key="")
@@ -136,9 +129,10 @@ class TestCreateLLMProvider:
 
     def test_factory_raises_if_fallback_key_missing(self):
         settings = Settings(
-            llm_provider="ollama",
-            llm_fallback_providers="openai",
-            openai_api_key="",
+            llm_provider="openai",
+            llm_fallback_providers="groq",
+            openai_api_key="sk-test",
+            groq_api_key="",
         )
         with pytest.raises(LLMConfigurationError, match="credencial"):
             create_llm_provider(settings)
@@ -146,7 +140,7 @@ class TestCreateLLMProvider:
     def test_provider_chain_deduplicates_preserving_order(self):
         settings = Settings(
             llm_provider="openai",
-            llm_fallback_providers="groq, openai, ollama",
+            llm_fallback_providers="groq, openai, gemini",
         )
 
-        assert _provider_chain(settings) == ("openai", "groq", "ollama")
+        assert _provider_chain(settings) == ("openai", "groq", "gemini")

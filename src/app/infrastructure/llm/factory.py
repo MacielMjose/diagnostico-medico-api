@@ -6,7 +6,7 @@ from app.infrastructure.llm.base import LLMProvider
 
 logger = structlog.get_logger()
 
-_SUPPORTED = ("openai", "anthropic", "ollama", "gemini", "groq")
+_SUPPORTED = ("openai", "anthropic", "gemini", "groq")
 
 # Env var that must be configured for each credential-based provider.
 _REQUIRED_ENV_VAR = {
@@ -61,17 +61,6 @@ def _create_single_provider(provider: str, settings: Settings) -> LLMProvider:
         )
         logger.info(
             "llm_provider_created", provider=provider, model=settings.anthropic_model
-        )
-        return p
-
-    if provider == "ollama":
-        from app.infrastructure.llm.ollama_provider import OllamaProvider
-
-        p = OllamaProvider(
-            base_url=settings.ollama_base_url, model=settings.ollama_model
-        )
-        logger.info(
-            "llm_provider_created", provider=provider, model=settings.ollama_model
         )
         return p
 
