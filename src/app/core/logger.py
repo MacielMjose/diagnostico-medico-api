@@ -8,13 +8,33 @@ from opentelemetry.sdk._logs.export import BatchLogRecordProcessor
 
 
 def setup_logging(settings):
-    """
-    Configura structlog + OpenTelemetry para envio de logs ao PostHog.
+    """Configura structlog + OpenTelemetry para envio de logs ao PostHog.
 
-    Fluxo:
-        structlog → stdlib logging → LoggingHandler (OTel) → PostHog Logs
+    Fluxo
+    -----
+    structlog → stdlib logging → LoggingHandler (OTel) → PostHog Logs
+                                 → StreamHandler (console) → stdout/stderr
+
+    A ordem é importante:
+    1. ``logging.basicConfig`` garantante um StreamHandler no root logger ANTES
+       de qualquer outro handler ser adicionado. Sem isso, o handler OTel pode
+       ser o único e, se ele falhar silenciosamente, nenhum log aparece.
+    2. O handler OTel é adicionado ao root logger para que qualquer log
+       ``logger.info / .warning / .error`` via structlog também seja exportado
+       para a aba **Logs** do PostHog (não confundir com a aba **Activity**,
+       que recebe eventos de produto via ``posthog.capture()``).
+    3. ``structlog.configure`` conecta o structlog ao stdlib logging, permitindo
+       que os logs atravessem todos os handlers registrados no root logger.
     """
-    # ── 1. OpenTelemetry → PostHog Logs ──────────────────────────────────
+    # ── 1. Console handler (garante output local) ────────────────────────
+    log_level = getattr(settings, "log_level", "INFO").upper()
+    numeric_level = getattr(logging, log_level, logging.INFO)
+    logging.basicConfig(level=numeric_level)
+    # Garante que o root logger tenha o nível correto mesmo que basicConfig
+    # seja um no-op (já existem handlers de testes anteriores, por exemplo).
+    logging.root.setLevel(numeric_level)
+
+    # ── 2. OpenTelemetry → PostHog Logs (aba Logs, NÃO Activity) ─────────
     if settings.posthog_enabled and settings.posthog_api_key:
         logger_provider = LoggerProvider()
         otel_logs.set_logger_provider(logger_provider)
@@ -26,12 +46,12 @@ def setup_logging(settings):
 
         logger_provider.add_log_record_processor(BatchLogRecordProcessor(otlp_exporter))
 
-        # Adiciona o handler OTel ao root logger do Python stdlib
+        # Handler OTel: converte registros stdlib → OTLP e envia ao PostHog.
+        # O handler não tem nível próprio — herda o do root logger.
         otel_handler = LoggingHandler(logger_provider=logger_provider)
-        otel_handler.setLevel(logging.INFO)
         logging.getLogger().addHandler(otel_handler)
 
-    # ── 2. structlog → stdlib logging (necessário para o handler OTel pegar) ─
+    # ── 3. structlog → stdlib logging ─────────────────────────────────────
     structlog.configure(
         processors=[
             structlog.stdlib.add_log_level,
@@ -45,10 +65,16 @@ def setup_logging(settings):
             else structlog.dev.ConsoleRenderer(),
         ],
         context_class=dict,
-        logger_factory=structlog.stdlib.LoggerFactory(),  # ← stdlib, não PrintLogger
+        logger_factory=structlog.stdlib.LoggerFactory(),
         wrapper_class=structlog.stdlib.BoundLogger,
         cache_logger_on_first_use=True,
     )
 
-    # Nível mínimo do root logger
-    logging.basicConfig(level=logging.INFO)
+    # ── 4. Log de diagnóstico (confirma que o pipeline está ativo) ────────
+    diag_logger = structlog.get_logger("logging.setup")
+    diag_logger.info(
+        "logging_setup_completed",
+        log_level=log_level,
+        otel_enabled=settings.posthog_enabled,
+        environment=getattr(settings, "environment", "dev"),
+    )

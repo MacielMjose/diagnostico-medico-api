@@ -1,3 +1,19 @@
+"""PostHog analytics — capture de eventos de produto.
+
+Este módulo envia eventos para a aba **Activity** do PostHog (monitoramento
+de comportamento de produto). Não confundir com a aba **Logs**, que recebe
+logs técnicos de infraestrutura via OpenTelemetry/OTLP (configurado em
+``app.core.logger.setup_logging``).
+
+Fluxo dos dois canais complementares
+-------------------------------------
+- ``capture_*()`` (este módulo) → PostHog **Activity** (eventos de produto)
+  Ex.: prediction_success, llm_success, api_startup, api_request.
+- ``logger.info() / .error() / .warning()`` (structlog) → PostHog **Logs**
+  via OTLP (logs técnicos de infraestrutura).
+  Ex.: prediction_completed, llm_explanation_completed, request_completed.
+"""
+
 from typing import Any, Optional
 
 from posthog import Posthog
