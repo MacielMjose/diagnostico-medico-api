@@ -64,47 +64,74 @@ def capture_request(
     capture_event("api_request", distinct_id, properties)
 
 
-def capture_prediction(
+def capture_prediction_success(
     model_name: str,
     duration: float,
-    status: str = "success",
-    error: Optional[str] = None,
+    endpoint: str = "/predict",
     user_id: Optional[str] = None,
 ) -> None:
     properties = {
         "model_name": model_name,
         "duration_ms": round(duration * 1000, 2),
-        "status": status,
+        "endpoint": endpoint,
     }
-    if error:
-        properties["error"] = error
-
     distinct_id = user_id or "api_server"
-    capture_event("model_prediction", distinct_id, properties)
+    capture_event("prediction_success", distinct_id, properties)
 
 
-def capture_llm_request(
+def capture_prediction_error(
+    model_name: str,
+    duration: float,
+    error: str,
+    endpoint: str = "/predict",
+    user_id: Optional[str] = None,
+) -> None:
+    properties = {
+        "model_name": model_name,
+        "duration_ms": round(duration * 1000, 2),
+        "endpoint": endpoint,
+        "error": error,
+    }
+    distinct_id = user_id or "api_server"
+    capture_event("prediction_error", distinct_id, properties)
+
+
+def capture_llm_success(
     provider: str,
     model: str,
     duration: float,
     tokens_used: Optional[int] = None,
-    status: str = "success",
-    error: Optional[str] = None,
     user_id: Optional[str] = None,
 ) -> None:
     properties = {
         "provider": provider,
         "model": model,
         "duration_ms": round(duration * 1000, 2),
-        "status": status,
     }
     if tokens_used:
         properties["tokens_used"] = tokens_used
-    if error:
-        properties["error"] = error
-
     distinct_id = user_id or "api_server"
-    capture_event("llm_request", distinct_id, properties)
+    capture_event("llm_success", distinct_id, properties)
+
+
+def capture_llm_error(
+    provider: str,
+    model: str,
+    duration: float,
+    error: str,
+    tokens_used: Optional[int] = None,
+    user_id: Optional[str] = None,
+) -> None:
+    properties = {
+        "provider": provider,
+        "model": model,
+        "duration_ms": round(duration * 1000, 2),
+        "error": error,
+    }
+    if tokens_used:
+        properties["tokens_used"] = tokens_used
+    distinct_id = user_id or "api_server"
+    capture_event("llm_error", distinct_id, properties)
 
 
 def close_posthog() -> None:

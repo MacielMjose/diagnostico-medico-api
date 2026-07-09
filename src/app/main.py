@@ -97,7 +97,6 @@ def create_app() -> FastAPI:
 
     @app.get("/health")
     async def health():
-        capture_event("health_check")
         return {"status": "ok", "version": "1.0.0"}
 
     @app.on_event("startup")

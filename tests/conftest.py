@@ -23,9 +23,11 @@ def mock_aws_and_posthog():
         with patch("app.monitoring.posthog.get_posthog_client", return_value=None):
             with patch("app.monitoring.posthog.capture_event"):
                 with patch("app.monitoring.posthog.capture_request"):
-                    with patch("app.monitoring.posthog.capture_prediction"):
-                        with patch("app.monitoring.posthog.capture_llm_request"):
-                            yield
+                    with patch("app.monitoring.posthog.capture_prediction_success"):
+                        with patch("app.monitoring.posthog.capture_prediction_error"):
+                            with patch("app.monitoring.posthog.capture_llm_success"):
+                                with patch("app.monitoring.posthog.capture_llm_error"):
+                                    yield
 
 
 @pytest.fixture

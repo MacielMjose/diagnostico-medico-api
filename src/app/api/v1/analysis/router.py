@@ -12,7 +12,12 @@ from app.api.v1.analysis.schemas import (
 from app.core.config import Settings
 from app.core.dependencies import get_explainer, get_predictor, get_settings
 from app.domain.features import FEATURE_COLUMN_MAP, validate_explain_features
-from app.monitoring.posthog import capture_llm_request
+from app.monitoring.posthog import (
+    capture_llm_error,
+    capture_llm_success,
+    capture_prediction_error,
+    capture_prediction_success,
+)
 from app.services.llm_explainer import LLMExplainerService
 from app.services.predictor import PredictorService
 
@@ -35,26 +40,38 @@ async def analysis(
     validate_explain_features(features)
 
     provider_model = getattr(settings, f"{settings.llm_provider}_model", "unknown")
-    start = time.time()
 
+    # 1) Predição — diagnóstico, probabilidade e features determinantes.
+    prediction_start = time.time()
     try:
-        # 1) Predição — diagnóstico, probabilidade e features determinantes.
         prediction = predictor.predict(payload)
+        capture_prediction_success(
+            model_name="pcos_model",
+            duration=time.time() - prediction_start,
+            endpoint="/analysis",
+        )
+    except Exception as e:
+        capture_prediction_error(
+            model_name="pcos_model",
+            duration=time.time() - prediction_start,
+            endpoint="/analysis",
+            error=str(e),
+        )
+        raise
 
-        # 2) Explicação clínica via LLM a partir do resultado da predição.
+    # 2) Explicação clínica via LLM a partir do resultado da predição.
+    llm_start = time.time()
+    try:
         explanation, tokens_used = await explainer.explain(
             features=features,
             diagnosis=prediction.diagnosis,
             probability=prediction.probability,
         )
-        duration = time.time() - start
-
-        capture_llm_request(
+        capture_llm_success(
             provider=settings.llm_provider,
             model=provider_model,
-            duration=duration,
+            duration=time.time() - llm_start,
             tokens_used=tokens_used,
-            status="success",
         )
 
         return AnalysisOutput(
@@ -74,12 +91,10 @@ async def analysis(
             ],
         )
     except Exception as e:
-        duration = time.time() - start
-        capture_llm_request(
+        capture_llm_error(
             provider=settings.llm_provider,
             model=provider_model,
-            duration=duration,
-            status="error",
+            duration=time.time() - llm_start,
             error=str(e),
         )
         raise

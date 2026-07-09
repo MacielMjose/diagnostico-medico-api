@@ -39,10 +39,11 @@ class TimingMiddleware(BaseHTTPMiddleware):
             status_code=response.status_code,
             request_id=request_id,
         )
-        capture_request(
-            endpoint=request.url.path,
-            method=request.method,
-            status_code=response.status_code,
-            duration=process_time,
-        )
+        if request.url.path != "/health":
+            capture_request(
+                endpoint=request.url.path,
+                method=request.method,
+                status_code=response.status_code,
+                duration=process_time,
+            )
         return response
