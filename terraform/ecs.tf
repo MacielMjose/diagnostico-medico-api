@@ -175,6 +175,30 @@ resource "aws_ecs_task_definition" "app" {
         {
           name  = "POSTHOG_ENABLED"
           value = "true"
+        },
+        {
+          name  = "LLM_PROVIDER"
+          value = lower(var.llm_provider)
+        },
+        {
+          name  = "LLM_FALLBACK_PROVIDERS"
+          value = var.llm_fallback_providers
+        },
+        {
+          name  = "OPENAI_MODEL"
+          value = var.openai_model
+        },
+        {
+          name  = "ANTHROPIC_MODEL"
+          value = var.anthropic_model
+        },
+        {
+          name  = "GROQ_MODEL"
+          value = var.groq_model
+        },
+        {
+          name  = "GEMINI_MODEL"
+          value = var.gemini_model
         }
       ]
 

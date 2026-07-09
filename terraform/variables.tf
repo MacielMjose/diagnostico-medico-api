@@ -94,6 +94,56 @@ variable "image_tag" {
   default     = "latest"
 }
 
+variable "llm_provider" {
+  description = "Primary LLM provider. Valid values: openai, anthropic, groq, gemini."
+  type        = string
+  default     = "groq"
+
+  validation {
+    condition     = contains(["openai", "anthropic", "groq", "gemini"], lower(var.llm_provider))
+    error_message = "llm_provider must be one of: openai, anthropic, groq, gemini."
+  }
+}
+
+variable "llm_fallback_providers" {
+  description = "Comma-separated fallback LLM providers tried after llm_provider, for example: openai,gemini."
+  type        = string
+  default     = "groq,gemini"
+
+  validation {
+    condition = alltrue([
+      for provider in compact([
+        for provider in split(",", var.llm_fallback_providers) : trimspace(lower(provider))
+      ]) : contains(["openai", "anthropic", "groq", "gemini"], provider)
+    ])
+    error_message = "llm_fallback_providers must contain only: openai, anthropic, groq, gemini."
+  }
+}
+
+variable "openai_model" {
+  description = "OpenAI model used when openai is selected as primary or fallback provider."
+  type        = string
+  default     = "gpt-4o-mini"
+}
+
+variable "anthropic_model" {
+  description = "Anthropic model used when anthropic is selected as primary or fallback provider."
+  type        = string
+  default     = "claude-haiku-4-5-20251001"
+}
+
+variable "groq_model" {
+  description = "Groq model used when groq is selected as primary or fallback provider."
+  type        = string
+  default     = "llama-3.1-8b-instant"
+}
+
+variable "gemini_model" {
+  description = "Gemini model used when gemini is selected as primary or fallback provider."
+  type        = string
+  default     = "gemini-2.5-flash"
+}
+
 variable "tags" {
   description = "Common tags for all resources"
   type        = map(string)
@@ -118,6 +168,18 @@ variable "secrets_to_create" {
     "groq_api_key" = {
       description        = "Groq API Key for LLM inference"
       container_env_name = "GROQ_API_KEY"
+    }
+    "openai_api_key" = {
+      description        = "OpenAI API Key for LLM inference"
+      container_env_name = "OPENAI_API_KEY"
+    }
+    "gemini_api_key" = {
+      description        = "Gemini API Key for LLM inference"
+      container_env_name = "GEMINI_API_KEY"
+    }
+    "anthropic_api_key" = {
+      description        = "Anthropic API Key for LLM inference"
+      container_env_name = "ANTHROPIC_API_KEY"
     }
   }
 }
