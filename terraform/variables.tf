@@ -169,5 +169,17 @@ variable "secrets_to_create" {
       description        = "Groq API Key for LLM inference"
       container_env_name = "GROQ_API_KEY"
     }
+    "openai_api_key" = {
+      description        = "OpenAI API Key for LLM inference"
+      container_env_name = "OPENAI_API_KEY"
+    }
+    "gemini_api_key" = {
+      description        = "Gemini API Key for LLM inference"
+      container_env_name = "GEMINI_API_KEY"
+    }
+    "anthropic_api_key" = {
+      description        = "Anthropic API Key for LLM inference"
+      container_env_name = "ANTHROPIC_API_KEY"
+    }
   }
 }
