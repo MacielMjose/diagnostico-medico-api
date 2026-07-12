@@ -97,14 +97,22 @@ def create_app() -> FastAPI:
 
     @app.get("/health")
     async def health():
+        logger.info("health_check", status="ok", version="1.0.0")
         return {"status": "ok", "version": "1.0.0"}
 
     @app.on_event("startup")
     async def startup():
+        logger.info(
+            "api_startup_completed",
+            version="1.0.0",
+            environment=settings.environment,
+            llm_provider=settings.llm_provider,
+        )
         capture_event("api_startup")
 
     @app.on_event("shutdown")
     async def shutdown():
+        logger.info("api_shutdown_started")
         capture_event("api_shutdown")
         close_posthog()
 
